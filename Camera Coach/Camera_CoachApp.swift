@@ -12,6 +12,9 @@ struct Camera_CoachApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onAppear {
+                    // App initialization complete
+                }
         }
     }
 }
