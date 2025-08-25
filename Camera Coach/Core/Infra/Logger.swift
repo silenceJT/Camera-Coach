@@ -73,27 +73,27 @@ public final class Logger: ObservableObject {
     }
     
     // MARK: - Guidance Events
-    public func logHintShown(type: GuidanceType, confidence: Float, ruleVersion: String) {
+    public func logHintShown(type: String, confidence: Float, ruleVersion: String) {
         let event = LogEvent(
             name: "hint_shown",
             timestamp: Date().timeIntervalSince1970,
             parameters: [
-                "type": type.rawValue,
+                "type": type,
                 "confidence": String(format: "%.2f", confidence),
                 "rule_version": ruleVersion
             ]
         )
         
         logEvent(event)
-        os_log(.info, log: osLog, "Hint shown - Type: %{public}@, Confidence: %.2f", type.rawValue, confidence)
+        os_log(.info, log: osLog, "Hint shown - Type: %{public}@, Confidence: %.2f", type, confidence)
     }
     
-    public func logHintAdopted(type: GuidanceType, adopted: Bool, latencyMs: Int, before: [String: String], after: [String: String]) {
+    public func logHintAdopted(type: String, adopted: Bool, latencyMs: Int, before: [String: String], after: [String: String]) {
         let event = LogEvent(
             name: "hint_adopted",
             timestamp: Date().timeIntervalSince1970,
             parameters: [
-                "type": type.rawValue,
+                "type": type,
                 "adopted": adopted ? "true" : "false",
                 "latency_ms": String(latencyMs),
                 "before": before.description,
@@ -102,7 +102,7 @@ public final class Logger: ObservableObject {
         )
         
         logEvent(event)
-        os_log(.info, log: osLog, "Hint adoption - Type: %{public}@, Adopted: %{public}@, Latency: %dms", type.rawValue, adopted ? "true" : "false", latencyMs)
+        os_log(.info, log: osLog, "Hint adoption - Type: %{public}@, Adopted: %{public}@, Latency: %dms", type, adopted ? "true" : "false", latencyMs)
     }
     
     // MARK: - Photo Events

@@ -27,25 +27,27 @@ enum Config {
     static let maxPromptsPerMinute: Int = 8
     static let maxSameTypePromptsPer10s: Int = 3
     
-    // MARK: - Horizon Guidance
+    // MARK: - Horizon Detection
     static let horizonThresholdDegrees: Float = 3.0
-    static let horizonHysteresisDegrees: Float = 0.5
+    static let horizonHysteresisDegrees: Float = 1.0
     static let horizonLowPassAlpha: Float = 0.15
     
-    // MARK: - Headroom Guidance
+    // MARK: - Headroom Detection
     static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0
     static let headroomToleranceDegrees: Float = 2.0
     
     // MARK: - Rule of Thirds
-    static let thirdsTolerancePercentage: Float = 5.0
+    static let thirdsTolerancePercentage: Float = 15.0
     
     // MARK: - Face Detection
     static let minFaceSizePercentage: Float = 2.0
     static let faceStabilityThresholdMs: Int = 300
     
-    // MARK: - HUD Display
-    static let hudFadeInDuration: TimeInterval = 1.2
-    static let hudFadeOutDuration: TimeInterval = 0.8
+    // MARK: - HUD Animation
+    static let hudFadeInDuration: TimeInterval = 0.8
+    static let hudFadeOutDuration: TimeInterval = 0.4
+    
+    // MARK: - Guidance Content
     static let maxGuidanceWords: Int = 12
     
     // MARK: - Privacy & Data

@@ -37,6 +37,9 @@ public final class GuidanceEngine: ObservableObject {
     private var guidanceCount = 0
     private var sessionStartTime = Date()
     
+    // MARK: - Current State
+    public private(set) var currentGuidance: GuidanceAdvice?
+    
     // MARK: - Initialization
     public init(provider: FrameFeaturesProvider) {
         self.provider = provider
@@ -63,7 +66,7 @@ public final class GuidanceEngine: ObservableObject {
             
             // Log the guidance
             logger.logHintShown(
-                type: advice.type,
+                type: advice.type.rawValue,
                 confidence: advice.confidence,
                 ruleVersion: advice.ruleVersion
             )
@@ -85,6 +88,26 @@ public final class GuidanceEngine: ObservableObject {
     
     public func onPhotoKept(_ kept: Bool) {
         logger.logPhotoKept(kept: kept)
+    }
+    
+    public func update() {
+        guard let features = provider.latest() else { return }
+        
+        // Check if we can emit guidance
+        guard !isInCooldown() && canEmitGuidance() else { return }
+        
+        // Generate guidance based on current frame features
+        if let guidance = analyzeFrameAndGenerateGuidance(features) {
+            // Apply cooldowns and track usage
+            applyCooldowns(for: guidance)
+            trackGuidanceUsage(guidance)
+            
+            // Update current guidance
+            currentGuidance = guidance
+            
+            // Log the guidance shown
+            logger.logHintShown(type: guidance.type.rawValue, confidence: guidance.confidence, ruleVersion: "1.0")
+        }
     }
     
     // MARK: - Private Methods

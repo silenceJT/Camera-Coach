@@ -144,7 +144,7 @@ public final class GuidanceHUDView: UIView {
         
         // Log the guidance shown
         Logger.shared.logHintShown(
-            type: guidance.type,
+            type: guidance.type.rawValue,
             confidence: guidance.confidence,
             ruleVersion: guidance.ruleVersion
         )
