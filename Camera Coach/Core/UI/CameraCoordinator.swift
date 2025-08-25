@@ -12,9 +12,10 @@ import UIKit
 
 public final class CameraCoordinator: NSObject, FrameFeaturesProvider, ObservableObject {
     // MARK: - Properties
-    private let cameraController = CameraController()
+    public let cameraController = CameraController()
     private let frameAnalyzer = FrameAnalyzer()
     private var guidanceEngine: GuidanceEngine!
+    public private(set) weak var hudView: GuidanceHUDView?
     
     // MARK: - Published Properties
     @Published var currentGuidance: GuidanceAdvice?
@@ -37,6 +38,10 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     }
     
     // MARK: - Public Interface
+    public func setHUDView(_ hud: GuidanceHUDView) {
+        self.hudView = hud
+    }
+    
     public func setupCamera(in view: UIView) throws {
         try cameraController.setupCamera(in: view)
     }
@@ -75,9 +80,12 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
             return
         }
         
-        // Update guidance state
-        currentGuidance = advice
-        isGuidanceActive = true
+        // Update guidance state on main thread for UI updates
+        DispatchQueue.main.async { [weak self] in
+            self?.currentGuidance = advice
+            self?.isGuidanceActive = true
+        }
+        
         lastGuidanceTime = now
         guidanceCount += 1
         
@@ -88,8 +96,10 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     }
     
     private func hideGuidance() {
-        isGuidanceActive = false
-        currentGuidance = nil
+        DispatchQueue.main.async { [weak self] in
+            self?.isGuidanceActive = false
+            self?.currentGuidance = nil
+        }
     }
     
     private func shouldShowGuidance() -> Bool {
@@ -113,8 +123,19 @@ extension CameraCoordinator: CameraControllerDelegate {
         // Update current frame features
         currentFrameFeatures = features
         
+        // Update guidance engine with current frame features
+        guidanceEngine.currentFrameFeatures = features
+        
+        // 🚀 NEW: Update level indicator using proper angle provider
+        DispatchQueue.main.async { [weak self] in
+            self?.hudView?.updateLevelIndicator()
+        }
+        
+        // Debug: Log frame features to see what we're working with        
         // Check if we should process guidance
-        guard shouldShowGuidance() else { return }
+        guard shouldShowGuidance() else { 
+            return 
+        }
         
         // Process frame through guidance engine
         if let advice = guidanceEngine.processFrame() {
@@ -127,7 +148,6 @@ extension CameraCoordinator: CameraControllerDelegate {
     
     public func cameraController(_ controller: CameraController, didEncounterError error: Error) {
         // Handle camera errors
-        print("Camera error in coordinator: \(error.localizedDescription)")
         
         // Could show user-facing error message here
     }

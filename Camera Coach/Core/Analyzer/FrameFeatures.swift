@@ -12,7 +12,8 @@ import CoreMotion
 
 public struct FrameFeatures {
     // MARK: - Horizon & Orientation
-    public let horizonDegrees: Float   // +right / -left (positive = tilted right)
+    public let horizonDegrees: Float   // +right / -left (positive = tilted right) - FILTERED for guidance logic
+    public let rawHorizonDegrees: Float // +right / -left - RAW device tilt for visual display
     public let horizonStableMs: Int    // milliseconds horizon has been stable
     
     // MARK: - Face Detection
@@ -35,6 +36,7 @@ public struct FrameFeatures {
     // MARK: - Initialization
     public init(
         horizonDegrees: Float,
+        rawHorizonDegrees: Float,
         horizonStableMs: Int,
         faceRect: CGRect?,
         faceStableMs: Int,
@@ -47,6 +49,7 @@ public struct FrameFeatures {
         currentFPS: Float
     ) {
         self.horizonDegrees = horizonDegrees
+        self.rawHorizonDegrees = rawHorizonDegrees
         self.horizonStableMs = horizonStableMs
         self.faceRect = faceRect
         self.faceStableMs = faceStableMs
@@ -107,6 +110,7 @@ extension FrameFeatures {
     /// Creates a FrameFeatures instance for testing with default values
     static func test(
         horizonDegrees: Float = 0.0,
+        rawHorizonDegrees: Float = 0.0,
         horizonStableMs: Int = 500,
         faceRect: CGRect? = CGRect(x: 0.5, y: 0.4, width: 0.2, height: 0.3),
         faceStableMs: Int = 500,
@@ -116,6 +120,7 @@ extension FrameFeatures {
     ) -> FrameFeatures {
         return FrameFeatures(
             horizonDegrees: horizonDegrees,
+            rawHorizonDegrees: rawHorizonDegrees,
             horizonStableMs: horizonStableMs,
             faceRect: faceRect,
             faceStableMs: faceStableMs,

@@ -63,7 +63,6 @@ public final class CameraViewController: UIViewController {
         
         // Only setup once when bounds are valid and camera not already active
         if !isSessionActive && !hasAttemptedCameraSetup && view.bounds.width > 0 && view.bounds.height > 0 {
-            print("📱 Setting up camera...")
             hasAttemptedCameraSetup = true
             setupCamera()
         }
@@ -81,6 +80,9 @@ public final class CameraViewController: UIViewController {
         // Setup HUD overlay
         hudView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hudView)
+        
+        // 🚀 CRITICAL FIX: Connect HUD to coordinator for horizon updates
+        coordinator?.setHUDView(hudView)
         
         // Setup shutter button
         let shutterButton = UIButton(type: .system)
@@ -131,10 +133,15 @@ public final class CameraViewController: UIViewController {
         
         do {
             try coordinator.setupCamera(in: cameraView)
+            
+            // Setup level indicator after camera is configured
+            if let hudView = coordinator.hudView {
+                coordinator.cameraController.setupLevelIndicator(for: hudView)
+            }
+            
             // Start the camera session immediately after setup
             coordinator.startSession()
         } catch {
-            print("Failed to setup camera: \(error.localizedDescription)")
             showCameraError(error)
         }
     }
@@ -158,7 +165,6 @@ public final class CameraViewController: UIViewController {
     private func showCameraError(_ error: Error) {
         // Only show error once to prevent multiple alerts
         guard !hasShownError else {
-            print("📱 Error already shown, skipping alert")
             return
         }
         

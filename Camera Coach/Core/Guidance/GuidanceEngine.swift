@@ -40,6 +40,9 @@ public final class GuidanceEngine: ObservableObject {
     // MARK: - Current State
     public private(set) var currentGuidance: GuidanceAdvice?
     
+    // MARK: - Frame Features (set by CameraCoordinator)
+    public var currentFrameFeatures: FrameFeatures?
+    
     // MARK: - Initialization
     public init(provider: FrameFeaturesProvider) {
         self.provider = provider
@@ -48,21 +51,24 @@ public final class GuidanceEngine: ObservableObject {
     
     // MARK: - Public Interface
     public func processFrame() -> GuidanceAdvice? {
-        guard let features = provider.latest() else { return nil }
+        // Check if we can emit guidance
+        guard !isInCooldown() && canEmitGuidance() else { 
+            return nil 
+        }
         
-        // Check if we're in a cooldown period
-        if isInCooldown() { return nil }
-        
-        // Check anti-spam limits
-        if !canEmitGuidance() { return nil }
+        // Get current frame features from the coordinator
+        guard let features = currentFrameFeatures else { 
+            return nil 
+        }
         
         // Analyze frame and generate guidance
-        let advice = analyzeFrameAndGenerateGuidance(features)
-        
-        if let advice = advice {
+        if let advice = analyzeFrameAndGenerateGuidance(features) {
             // Apply cooldowns and track usage
             applyCooldowns(for: advice)
             trackGuidanceUsage(advice)
+            
+            // Update current guidance
+            currentGuidance = advice
             
             // Log the guidance
             logger.logHintShown(
@@ -110,9 +116,12 @@ public final class GuidanceEngine: ObservableObject {
         }
     }
     
+
+    
     // MARK: - Private Methods
     private func startSession() {
         sessionStartTime = Date()
+        lastGuidanceTime = Date() // Initialize to current time so first guidance can be generated
         guidanceCount = 0
         typeCooldowns.removeAll()
         recentPrompts.removeAll()
@@ -142,13 +151,31 @@ public final class GuidanceEngine: ObservableObject {
         
         // Global rate limiting: ≤2 prompts/sec
         let timeSinceLastGuidance = now.timeIntervalSince(lastGuidanceTime)
+        
         if timeSinceLastGuidance < 0.5 { // 2 prompts/sec = 0.5s between prompts
             return false
         }
         
-        // Global prompts per minute: ≤8
+        // 🚀 CRITICAL FIX: Improved session limit logic
+        // Previous logic was flawed: max(1, Int(sessionDuration / 60.0) * Config.maxPromptsPerMinute)
+        // This meant: first minute = 1 prompt, after 1 minute = 20 prompts (too restrictive then too permissive)
+        
         let sessionDuration = now.timeIntervalSince(sessionStartTime)
-        let maxPromptsInSession = Int(sessionDuration / 60.0) * Config.maxPromptsPerMinute
+        let sessionMinutes = sessionDuration / 60.0
+        
+        // Allow more guidance in the first minute for immediate feedback
+        let maxPromptsInSession: Int
+        if sessionMinutes < 1.0 {
+            // First minute: allow up to 5 prompts (more responsive initial feedback)
+            maxPromptsInSession = 5
+        } else if sessionMinutes < 2.0 {
+            // Second minute: allow up to 8 prompts
+            maxPromptsInSession = 8
+        } else {
+            // After 2 minutes: use the configured rate
+            maxPromptsInSession = Int(sessionMinutes * Double(Config.maxPromptsPerMinute))
+        }
+        
         if guidanceCount >= maxPromptsInSession {
             return false
         }
@@ -165,11 +192,9 @@ public final class GuidanceEngine: ObservableObject {
             return headroomAdvice
         }
         
-        // 2. Horizon guidance (only if headroom is good)
-        if features.isHeadroomInTarget || features.headroomPercentage == nil {
-            if let horizonAdvice = generateHorizonGuidance(features) {
-                return horizonAdvice
-            }
+        // 2. Horizon guidance (independent of headroom - can work without faces)
+        if let horizonAdvice = generateHorizonGuidance(features) {
+            return horizonAdvice
         }
         
         // 3. Rule of thirds (only if headroom and horizon are good)
@@ -177,6 +202,13 @@ public final class GuidanceEngine: ObservableObject {
             if let thirdsAdvice = generateThirdsGuidance(features) {
                 return thirdsAdvice
             }
+        }
+        
+        // Clear currentGuidance when no new guidance is generated
+        // This prevents the guidance engine from staying "stuck" with old guidance
+        // after the user corrects their position
+        if currentGuidance != nil {
+            currentGuidance = nil
         }
         
         return nil
@@ -223,13 +255,24 @@ public final class GuidanceEngine: ObservableObject {
     private func generateHorizonGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
         // Only provide horizon guidance if horizon is stable and tilted
         guard features.hasStableHorizon,
-              !features.isHorizonLevel else { return nil }
+              !features.isHorizonLevel else { 
+            return nil 
+        }
         
         let degrees = features.horizonDegrees
         let absDegrees = abs(degrees)
         
-        // Apply hysteresis to prevent oscillation
-        if absDegrees > Config.horizonThresholdDegrees + Config.horizonHysteresisDegrees {
+        // Apply dead zone to prevent guidance spam
+        // Don't guide if user is already "good enough" (±2.0°)
+        if absDegrees <= Config.horizonGoodEnoughDegrees {
+            return nil
+        }
+        
+        // Apply smart hysteresis to prevent oscillation
+        // Only guide if significantly outside threshold + hysteresis
+        let effectiveThreshold = Config.horizonThresholdDegrees + Config.horizonHysteresisDegrees
+        
+        if absDegrees > effectiveThreshold {
             let action: GuidanceAction
             let reason: String
             
@@ -245,13 +288,18 @@ public final class GuidanceEngine: ObservableObject {
                 reason = "Level horizon"
             }
             
+            // 🚀 SMART COOLDOWN: Adaptive cooldown based on improvement
+            let adaptiveCooldown = calculateAdaptiveCooldown(for: .horizon, currentAngle: degrees)
+            
             return GuidanceAdvice(
                 action: action,
                 type: .horizon,
                 reason: reason,
                 confidence: 0.95,
-                cooldownMs: Config.ruleCooldownMs
+                cooldownMs: adaptiveCooldown
             )
+        } else {
+            return nil
         }
         
         return nil
@@ -325,5 +373,25 @@ public final class GuidanceEngine: ObservableObject {
             return true
         }
         return false
+    }
+    
+    // MARK: - Smart Cooldown Logic
+    private func calculateAdaptiveCooldown(for guidanceType: GuidanceType, currentAngle: Float) -> Int {
+        let baseCooldown = Config.ruleCooldownMs
+        
+        // For horizon guidance, check if user is improving
+        if guidanceType == .horizon {
+            // If user is within "good enough" range, extend cooldown
+            if abs(currentAngle) <= Config.horizonGoodEnoughDegrees {
+                return baseCooldown * 3 // 3x longer cooldown when close to target
+            }
+            
+            // If user is making small improvements, give them more time
+            if abs(currentAngle) <= Config.horizonThresholdDegrees + 2.0 {
+                return baseCooldown * 2 // 2x longer cooldown when improving
+            }
+        }
+        
+        return baseCooldown
     }
 }
