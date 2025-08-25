@@ -400,7 +400,8 @@
 				DEVELOPMENT_TEAM = M6M9GH2JWC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach needs camera access to provide real-time photography guidance and capture photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Camera Coach needs photo library access to save your captured photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -429,8 +430,9 @@
 				DEVELOPMENT_TEAM = M6M9GH2JWC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach needs camera access to provide real-time photography guidance and capture photos.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Camera Coach uses device motion to provide real-time horizon leveling guidance, just like the native iOS Camera app. This helps you take perfectly level photos.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Camera Coach needs photo library access to save your captured photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

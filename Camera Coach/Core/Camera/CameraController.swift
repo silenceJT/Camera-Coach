@@ -10,10 +10,13 @@ import UIKit
 import AVFoundation
 import CoreMotion
 import Vision
+import Photos
 
 public protocol CameraControllerDelegate: AnyObject {
     func cameraController(_ controller: CameraController, didUpdateFrame features: FrameFeatures)
     func cameraController(_ controller: CameraController, didEncounterError error: Error)
+    func cameraControllerDidCapturePhoto(_ controller: CameraController)
+    func cameraController(_ controller: CameraController, didFailWithError error: Error)
 }
 
 public final class CameraController: NSObject {
@@ -22,6 +25,7 @@ public final class CameraController: NSObject {
     
     private let session = AVCaptureSession()
     private let videoDataOutput = AVCaptureVideoDataOutput()
+    private let photoOutput = AVCapturePhotoOutput()
     private let frameAnalyzer = FrameAnalyzer()
     
     private let sessionQueue = DispatchQueue(label: "com.silencejt.cameracoach.session", qos: .userInitiated)
@@ -82,6 +86,46 @@ public final class CameraController: NSObject {
         }
     }
     
+    public func capturePhoto() {
+        guard isSessionRunning else { return }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            let settings = AVCapturePhotoSettings()
+            settings.flashMode = .auto
+            
+            // Enable high resolution capture
+            if self.photoOutput.isHighResolutionCaptureEnabled {
+                settings.isHighResolutionPhotoEnabled = true
+            }
+            
+            // Set correct photo orientation to match device orientation
+            if let photoOutputConnection = self.photoOutput.connection(with: .video) {
+                if photoOutputConnection.isVideoOrientationSupported {
+                    // Use current device orientation for proper photo orientation
+                    let deviceOrientation = UIDevice.current.orientation
+                    switch deviceOrientation {
+                    case .portrait:
+                        photoOutputConnection.videoOrientation = .portrait
+                    case .portraitUpsideDown:
+                        photoOutputConnection.videoOrientation = .portraitUpsideDown
+                    case .landscapeLeft:
+                        photoOutputConnection.videoOrientation = .landscapeRight
+                    case .landscapeRight:
+                        photoOutputConnection.videoOrientation = .landscapeLeft
+                    default:
+                        // Default to portrait for face up/down or unknown
+                        photoOutputConnection.videoOrientation = .portrait
+                    }
+                }
+            }
+            
+            // Capture the photo
+            self.photoOutput.capturePhoto(with: settings, delegate: self)
+        }
+    }
+    
     public func updatePreviewLayerFrame(_ frame: CGRect) {
         previewLayer?.frame = frame
     }
@@ -121,12 +165,27 @@ public final class CameraController: NSObject {
         }
         session.addOutput(videoDataOutput)
         
+        // Configure photo output for still image capture
+        guard session.canAddOutput(photoOutput) else {
+            throw CameraError.cannotAddOutput
+        }
+        session.addOutput(photoOutput)
+        
         // Lock orientation to portrait
         if let connection = videoDataOutput.connection(with: .video) {
             if #available(iOS 17.0, *) {
                 connection.videoRotationAngle = 0
             } else {
                 connection.videoOrientation = .portrait
+            }
+        }
+        
+        // Configure photo output connection orientation
+        if let photoConnection = photoOutput.connection(with: .video) {
+            if #available(iOS 17.0, *) {
+                photoConnection.videoRotationAngle = 0
+            } else {
+                photoConnection.videoOrientation = .portrait
             }
         }
     }
@@ -222,6 +281,66 @@ public enum CameraError: LocalizedError {
             return "Cannot add camera output"
         case .previewLayerCreationFailed:
             return "Failed to create preview layer"
+        }
+    }
+}
+
+// MARK: - AVCapturePhotoCaptureDelegate
+extension CameraController: AVCapturePhotoCaptureDelegate {
+    public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        if let error = error {
+            DispatchQueue.main.async {
+                self.delegate?.cameraController(self, didFailWithError: error)
+            }
+            return
+        }
+        
+        guard let imageData = photo.fileDataRepresentation() else {
+            let error = CameraError.cannotAddOutput // Reuse existing error
+            DispatchQueue.main.async {
+                self.delegate?.cameraController(self, didFailWithError: error)
+            }
+            return
+        }
+        
+        guard let image = UIImage(data: imageData) else {
+            let error = CameraError.cannotAddOutput // Reuse existing error
+            DispatchQueue.main.async {
+                self.delegate?.cameraController(self, didFailWithError: error)
+            }
+            return
+        }
+        
+        // Save to Photos Library
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { [weak self] status in
+            switch status {
+            case .authorized, .limited:
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetCreationRequest.creationRequestForAsset(from: image)
+                }) { [weak self] success, error in
+                    DispatchQueue.main.async {
+                        if success {
+                            self?.delegate?.cameraControllerDidCapturePhoto(self!)
+                            Logger.shared.logPhotoKept(kept: true)
+                        } else {
+                            self?.delegate?.cameraController(self!, didFailWithError: error ?? CameraError.cannotAddOutput)
+                            Logger.shared.logPhotoKept(kept: false)
+                        }
+                    }
+                }
+            case .denied, .restricted, .notDetermined:
+                DispatchQueue.main.async {
+                    let error = CameraError.cannotAddOutput // Reuse existing error for photo permission
+                    self?.delegate?.cameraController(self!, didFailWithError: error)
+                    Logger.shared.logPhotoKept(kept: false)
+                }
+            @unknown default:
+                DispatchQueue.main.async {
+                    let error = CameraError.cannotAddOutput // Reuse existing error
+                    self?.delegate?.cameraController(self!, didFailWithError: error)
+                    Logger.shared.logPhotoKept(kept: false)
+                }
+            }
         }
     }
 }

@@ -43,10 +43,18 @@ public final class GuidanceEngine: ObservableObject {
     // MARK: - Frame Features (set by CameraCoordinator)
     public var currentFrameFeatures: FrameFeatures?
     
+    // MARK: - Hint Adoption Tracking
+    private var activeHint: ActiveHint?
+    private var hintCheckTimer: Timer?
+    
     // MARK: - Initialization
     public init(provider: FrameFeaturesProvider) {
         self.provider = provider
         startSession()
+    }
+    
+    deinit {
+        hintCheckTimer?.invalidate()
     }
     
     // MARK: - Public Interface
@@ -63,9 +71,15 @@ public final class GuidanceEngine: ObservableObject {
         
         // Analyze frame and generate guidance
         if let advice = analyzeFrameAndGenerateGuidance(features) {
+            // Extract metrics before applying guidance
+            let beforeMetrics = extractMetricsFromFeatures(features)
+            
             // Apply cooldowns and track usage
             applyCooldowns(for: advice)
             trackGuidanceUsage(advice)
+            
+            // Start hint adoption tracking
+            startHintTracking(for: advice, beforeMetrics: beforeMetrics)
             
             // Update current guidance
             currentGuidance = advice
@@ -118,6 +132,110 @@ public final class GuidanceEngine: ObservableObject {
     
 
     
+    // MARK: - Hint Adoption Tracking
+    private func startHintTracking(for advice: GuidanceAdvice, beforeMetrics: [String: String]) {
+        // Cancel any existing timer
+        hintCheckTimer?.invalidate()
+        
+        // Create new active hint
+        activeHint = ActiveHint(
+            advice: advice,
+            startTime: Date(),
+            beforeMetrics: beforeMetrics
+        )
+        
+        // Set timer to check adoption after 10 seconds
+        hintCheckTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(Config.hintAdoptionWindowMs / 1000), repeats: false) { [weak self] _ in
+            self?.checkHintAdoption()
+        }
+    }
+    
+    private func checkHintAdoption() {
+        guard let hint = activeHint,
+              let currentFeatures = currentFrameFeatures else {
+            return
+        }
+        
+        let afterMetrics = extractMetricsFromFeatures(currentFeatures)
+        let adopted = evaluateHintAdoption(hint: hint, afterMetrics: afterMetrics)
+        let latencyMs = Int(Date().timeIntervalSince(hint.startTime) * 1000)
+        
+        // Log the adoption result
+        Logger.shared.logHintAdopted(
+            type: hint.advice.type.rawValue,
+            adopted: adopted,
+            latencyMs: latencyMs,
+            before: hint.beforeMetrics,
+            after: afterMetrics
+        )
+        
+        // Clear active hint and invalidate timer to allow new guidance
+        activeHint = nil
+        hintCheckTimer?.invalidate()
+        hintCheckTimer = nil
+    }
+    
+    private func extractMetricsFromFeatures(_ features: FrameFeatures) -> [String: String] {
+        var metrics: [String: String] = [:]
+        
+        metrics["horizon_degrees"] = String(format: "%.1f", features.horizonDegrees)
+        metrics["horizon_stable"] = String(features.hasStableHorizon)
+        metrics["horizon_level"] = String(features.isHorizonLevel)
+        
+        if let headroom = features.headroomPercentage {
+            metrics["headroom_percent"] = String(format: "%.1f", headroom)
+        }
+        
+        if let thirdsOffset = features.thirdsOffsetPercentage {
+            metrics["thirds_offset"] = String(format: "%.1f", thirdsOffset)
+        }
+        
+        metrics["fps"] = String(format: "%.1f", features.currentFPS)
+        
+        return metrics
+    }
+    
+    private func evaluateHintAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        switch hint.advice.type {
+        case .horizon:
+            return evaluateHorizonAdoption(hint: hint, afterMetrics: afterMetrics)
+        case .headroom:
+            return evaluateHeadroomAdoption(hint: hint, afterMetrics: afterMetrics)
+        case .thirds:
+            return evaluateThirdsAdoption(hint: hint, afterMetrics: afterMetrics)
+        case .leadspace:
+            return false // Not implemented yet
+        }
+    }
+    
+    private func evaluateHorizonAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        guard let beforeDegrees = Float(hint.beforeMetrics["horizon_degrees"] ?? ""),
+              let afterDegrees = Float(afterMetrics["horizon_degrees"] ?? "") else {
+            return false
+        }
+        
+        let beforeAbsDegrees = abs(beforeDegrees)
+        let afterAbsDegrees = abs(afterDegrees)
+        
+        // Consider adopted if:
+        // 1. User moved towards level (improvement of at least 1°)
+        // 2. OR achieved level position (within 3°)
+        let improvementDegrees = beforeAbsDegrees - afterAbsDegrees
+        let achievedLevel = afterAbsDegrees <= Config.horizonThresholdDegrees
+        
+        return improvementDegrees >= 1.0 || achievedLevel
+    }
+    
+    private func evaluateHeadroomAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        // TODO: Implement when headroom guidance is added
+        return false
+    }
+    
+    private func evaluateThirdsAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        // TODO: Implement when thirds guidance is added
+        return false
+    }
+
     // MARK: - Private Methods
     private func startSession() {
         sessionStartTime = Date()
@@ -125,6 +243,10 @@ public final class GuidanceEngine: ObservableObject {
         guidanceCount = 0
         typeCooldowns.removeAll()
         recentPrompts.removeAll()
+        
+        // Clean up any existing hint tracking
+        hintCheckTimer?.invalidate()
+        activeHint = nil
     }
     
     private func isInCooldown() -> Bool {
@@ -163,16 +285,19 @@ public final class GuidanceEngine: ObservableObject {
         let sessionDuration = now.timeIntervalSince(sessionStartTime)
         let sessionMinutes = sessionDuration / 60.0
         
-        // Allow more guidance in the first minute for immediate feedback
+        // Allow more guidance in the first few minutes for immediate feedback and testing
         let maxPromptsInSession: Int
         if sessionMinutes < 1.0 {
-            // First minute: allow up to 5 prompts (more responsive initial feedback)
-            maxPromptsInSession = 5
+            // First minute: allow up to 10 prompts (more responsive initial feedback)
+            maxPromptsInSession = 10
         } else if sessionMinutes < 2.0 {
-            // Second minute: allow up to 8 prompts
-            maxPromptsInSession = 8
+            // Second minute: allow up to 15 prompts
+            maxPromptsInSession = 15
+        } else if sessionMinutes < 3.0 {
+            // Third minute: allow up to 20 prompts
+            maxPromptsInSession = 20
         } else {
-            // After 2 minutes: use the configured rate
+            // After 3 minutes: use the configured rate
             maxPromptsInSession = Int(sessionMinutes * Double(Config.maxPromptsPerMinute))
         }
         
@@ -394,4 +519,11 @@ public final class GuidanceEngine: ObservableObject {
         
         return baseCooldown
     }
+}
+
+// MARK: - Supporting Data Structures
+private struct ActiveHint {
+    let advice: GuidanceAdvice
+    let startTime: Date
+    let beforeMetrics: [String: String]
 }

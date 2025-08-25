@@ -58,6 +58,9 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
         guidanceEngine.onShutter()
         isGuidanceActive = false
         currentGuidance = nil
+        
+        // Trigger photo capture
+        cameraController.capturePhoto()
     }
     
     public func onPhotoKept(_ kept: Bool) {
@@ -150,5 +153,20 @@ extension CameraCoordinator: CameraControllerDelegate {
         // Handle camera errors
         
         // Could show user-facing error message here
+    }
+    
+    public func cameraControllerDidCapturePhoto(_ controller: CameraController) {
+        // Photo captured successfully
+        // Could add visual feedback here (flash effect, success animation)
+        
+        // For now, we assume photo is kept (user could be asked in micro-survey)
+        onPhotoKept(true)
+    }
+    
+    public func cameraController(_ controller: CameraController, didFailWithError error: Error) {
+        // Photo capture failed
+        
+        // Could show user-facing error message here
+        onPhotoKept(false)
     }
 }
