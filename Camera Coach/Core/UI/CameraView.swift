@@ -8,15 +8,16 @@
 
 import SwiftUI
 import UIKit
+import Combine
 
 public struct CameraView: UIViewControllerRepresentable {
     // MARK: - Properties
-    @ObservedObject private var logger = Logger.shared
+    @ObservedObject private var coordinator = CameraCoordinator()
     
     // MARK: - UIViewControllerRepresentable
     public func makeUIViewController(context: Context) -> CameraViewController {
         let cameraVC = CameraViewController()
-        cameraVC.delegate = context.coordinator
+        cameraVC.coordinator = coordinator
         return cameraVC
     }
     
@@ -24,54 +25,19 @@ public struct CameraView: UIViewControllerRepresentable {
         // Handle any updates if needed
     }
     
-    public func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    // MARK: - Coordinator
-    public class Coordinator: NSObject, CameraViewControllerDelegate {
-        private let parent: CameraView
-        
-        init(_ parent: CameraView) {
-            self.parent = parent
-        }
-        
-        // MARK: - CameraViewControllerDelegate
-        public func cameraViewControllerDidStartSession(_ viewController: CameraViewController) {
-            // Log session start
-            let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-            let deviceModel = UIDevice.current.model
-            let osVersion = UIDevice.current.systemVersion
-            
-            parent.logger.startSession(build: build, deviceModel: deviceModel, osVersion: osVersion)
-        }
-        
-        public func cameraViewControllerDidStopSession(_ viewController: CameraViewController) {
-            parent.logger.stopSession()
-        }
-        
-        public func cameraViewController(_ viewController: CameraViewController, didUpdateFrame features: FrameFeatures) {
-            // Handle frame updates - this will be connected to the guidance engine later
-            // For Week 1, we just log performance metrics
-        }
-        
-        public func cameraViewController(_ viewController: CameraViewController, didEncounterError error: Error) {
-            // Handle camera errors
-            print("Camera error: \(error.localizedDescription)")
-        }
-    }
+    // No coordinator needed - we use the CameraCoordinator directly
 }
 
 // MARK: - Camera View Controller
 public final class CameraViewController: UIViewController {
     // MARK: - Properties
-    public weak var delegate: CameraViewControllerDelegate?
+    public var coordinator: CameraCoordinator?
     
-    private let cameraController = CameraController()
     private let hudView = GuidanceHUDView()
     private let cameraView = UIView()
     
     private var isSessionActive = false
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Lifecycle
     public override func viewDidLoad() {
@@ -92,7 +58,7 @@ public final class CameraViewController: UIViewController {
     
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        cameraController.updatePreviewLayerFrame(cameraView.bounds)
+        // Preview layer frame is handled by the coordinator now
     }
     
     // MARK: - UI Setup
@@ -108,6 +74,28 @@ public final class CameraViewController: UIViewController {
         hudView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hudView)
         
+        // Setup shutter button
+        let shutterButton = UIButton(type: .system)
+        shutterButton.backgroundColor = .white
+        shutterButton.layer.cornerRadius = 35
+        shutterButton.layer.borderWidth = 4
+        shutterButton.layer.borderColor = UIColor.white.cgColor
+        shutterButton.addTarget(self, action: #selector(shutterButtonTapped), for: .touchUpInside)
+        shutterButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(shutterButton)
+        
+        // Observe coordinator for guidance updates
+        coordinator?.$currentGuidance
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] guidance in
+                if let guidance = guidance {
+                    self?.hudView.showGuidance(guidance)
+                } else {
+                    self?.hudView.hideGuidance()
+                }
+            }
+            .store(in: &cancellables)
+        
         // Setup constraints
         NSLayoutConstraint.activate([
             cameraView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -118,7 +106,12 @@ public final class CameraViewController: UIViewController {
             hudView.topAnchor.constraint(equalTo: view.topAnchor),
             hudView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             hudView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            hudView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            hudView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            shutterButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
+            shutterButton.widthAnchor.constraint(equalToConstant: 70),
+            shutterButton.heightAnchor.constraint(equalToConstant: 70)
         ])
         
         // Hide status bar for full-screen camera experience
@@ -126,9 +119,10 @@ public final class CameraViewController: UIViewController {
     }
     
     private func setupCamera() {
+        guard let coordinator = coordinator else { return }
+        
         do {
-            try cameraController.setupCamera(in: cameraView)
-            cameraController.delegate = self
+            try coordinator.setupCamera(in: cameraView)
         } catch {
             print("Failed to setup camera: \(error.localizedDescription)")
             showCameraError(error)
@@ -137,19 +131,17 @@ public final class CameraViewController: UIViewController {
     
     // MARK: - Camera Session Management
     private func startCameraSession() {
-        guard !isSessionActive else { return }
+        guard !isSessionActive, let coordinator = coordinator else { return }
         
-        cameraController.startSession()
+        coordinator.startSession()
         isSessionActive = true
-        delegate?.cameraViewControllerDidStartSession(self)
     }
     
     private func stopCameraSession() {
-        guard isSessionActive else { return }
+        guard !isSessionActive, let coordinator = coordinator else { return }
         
-        cameraController.stopSession()
+        coordinator.stopSession()
         isSessionActive = false
-        delegate?.cameraViewControllerDidStopSession(self)
     }
     
     // MARK: - Error Handling
@@ -172,27 +164,19 @@ public final class CameraViewController: UIViewController {
     public override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation {
         return .fade
     }
-}
-
-// MARK: - Camera Controller Delegate
-extension CameraViewController: CameraControllerDelegate {
-    public func cameraController(_ controller: CameraController, didUpdateFrame features: FrameFeatures) {
-        // Update HUD with frame features
-        hudView.updateHorizonAngle(features.horizonDegrees)
-        
-        // Delegate frame update to SwiftUI coordinator
-        delegate?.cameraViewController(self, didUpdateFrame: features)
-    }
     
-    public func cameraController(_ controller: CameraController, didEncounterError error: Error) {
-        delegate?.cameraViewController(self, didEncounterError: error)
+    // MARK: - Actions
+    @objc private func shutterButtonTapped() {
+        coordinator?.onShutter()
+        
+        // Show a simple photo taken feedback
+        let feedback = UIImpactFeedbackGenerator(style: .medium)
+        feedback.impactOccurred()
+        
+        // Could add photo preview or other feedback here
     }
 }
 
-// MARK: - Protocol
-public protocol CameraViewControllerDelegate: AnyObject {
-    func cameraViewControllerDidStartSession(_ viewController: CameraViewController)
-    func cameraViewControllerDidStopSession(_ viewController: CameraViewController)
-    func cameraViewController(_ viewController: CameraViewController, didUpdateFrame features: FrameFeatures)
-    func cameraViewController(_ viewController: CameraViewController, didEncounterError error: Error)
-}
+// No delegate needed - coordinator handles everything
+
+// No protocol needed - coordinator handles everything
