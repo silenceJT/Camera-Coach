@@ -400,12 +400,12 @@
 				DEVELOPMENT_TEAM = M6M9GH2JWC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -429,12 +429,13 @@
 				DEVELOPMENT_TEAM = M6M9GH2JWC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Camera Coach uses device motion to provide real-time horizon leveling guidance, just like the native iOS Camera app. This helps you take perfectly level photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Coach uses your camera to provide real-time guidance for better photo composition. We analyze your camera feed to give you tips on horizon alignment, headroom balance, and rule of thirds positioning. No photos are stored or uploaded without your explicit permission.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

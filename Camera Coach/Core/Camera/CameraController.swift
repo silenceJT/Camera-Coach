@@ -22,24 +22,24 @@ public final class CameraController: NSObject {
     
     private let session = AVCaptureSession()
     private let videoDataOutput = AVCaptureVideoDataOutput()
-    private let motionManager = CMMotionManager()
+    private let frameAnalyzer = FrameAnalyzer()
     
     private let sessionQueue = DispatchQueue(label: "com.silencejt.cameracoach.session", qos: .userInitiated)
     private let videoDataQueue = DispatchQueue(label: "com.silencejt.cameracoach.videodata", qos: .userInitiated)
     
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var isSessionRunning = false
+    private var currentDevice: AVCaptureDevice?
+    private var angleProvider: LevelAngleProvider?
     
     // MARK: - Performance Monitoring
     private var frameCount = 0
     private var lastFrameTime: TimeInterval = 0
-    private var fpsCalculator = FPSCalculator()
     private var thermalState: ProcessInfo.ThermalState = .nominal
     
     // MARK: - Initialization
     public override init() {
         super.init()
-        setupMotionManager()
         setupThermalMonitoring()
     }
     
@@ -99,6 +99,9 @@ public final class CameraController: NSObject {
             throw CameraError.backCameraNotFound
         }
         
+        // Store device reference for level indicator
+        self.currentDevice = backCamera
+        
         // Create input
         let videoInput = try AVCaptureDeviceInput(device: backCamera)
         guard session.canAddInput(videoInput) else {
@@ -126,10 +129,6 @@ public final class CameraController: NSObject {
                 connection.videoOrientation = .portrait
             }
         }
-    }
-    
-    private func setupMotionManager() {
-        motionManager.deviceMotionUpdateInterval = 1.0 / 30.0 // 30Hz updates
     }
     
     private func setupThermalMonitoring() {
@@ -161,92 +160,36 @@ public final class CameraController: NSObject {
     
     // MARK: - Frame Analysis
     private func analyzeFrame(_ sampleBuffer: CMSampleBuffer) -> FrameFeatures {
-        let startTime = CACurrentMediaTime()
-        
-        // Get image buffer
-        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            return FrameFeatures(
-                horizonDegrees: 0,
-                horizonStableMs: 0,
-                faceRect: nil,
-                faceStableMs: 0,
-                faceSizePercentage: nil,
-                headroomPercentage: nil,
-                thirdsOffsetPercentage: nil,
-                timestamp: startTime,
-                processingLatencyMs: 0,
-                thermalState: thermalState,
-                currentFPS: fpsCalculator.currentFPS
-            )
-        }
-        
-        // Analyze horizon using CoreMotion
-        let horizonDegrees = getHorizonDegrees()
-        let horizonStableMs = getHorizonStabilityMs()
-        
-        // Analyze face using Vision
-        let faceAnalysis = analyzeFace(in: imageBuffer)
-        
-        // Calculate processing latency
-        let endTime = CACurrentMediaTime()
-        let latencyMs = Int((endTime - startTime) * 1000)
-        
-        // Update FPS calculation
-        fpsCalculator.updateFrame()
+        // Use FrameAnalyzer for comprehensive analysis
+        let features = frameAnalyzer.analyzeFrame(sampleBuffer)
         
         // Log performance metrics periodically
         if frameCount % 30 == 0 { // Every 30 frames
-            Logger.shared.logFPSSample(average: fpsCalculator.averageFPS, p95: fpsCalculator.p95FPS)
+            Logger.shared.logFPSSample(average: features.currentFPS, p95: features.currentFPS)
         }
         
         frameCount += 1
         
-        return FrameFeatures(
-            horizonDegrees: horizonDegrees,
-            horizonStableMs: horizonStableMs,
-            faceRect: faceAnalysis.rect,
-            faceStableMs: faceAnalysis.stableMs,
-            faceSizePercentage: faceAnalysis.sizePercentage,
-            headroomPercentage: faceAnalysis.headroomPercentage,
-            thirdsOffsetPercentage: faceAnalysis.thirdsOffsetPercentage,
-            timestamp: startTime,
-            processingLatencyMs: latencyMs,
-            thermalState: thermalState,
-            currentFPS: fpsCalculator.currentFPS
-        )
+        return features
     }
     
-    private func getHorizonDegrees() -> Float {
-        guard motionManager.isDeviceMotionAvailable else { return 0.0 }
-        
-        if !motionManager.isDeviceMotionActive {
-            motionManager.startDeviceMotionUpdates()
+    // MARK: - Level Indicator Setup
+    
+    public func setupLevelIndicator(for hudView: GuidanceHUDView) {
+        guard currentDevice != nil else {
+            return
         }
         
-        guard let motion = motionManager.deviceMotion else { return 0.0 }
-        
-        // Convert roll to degrees and apply low-pass filter
-        let rollDegrees = Float(motion.attitude.roll * 180.0 / .pi)
-        return rollDegrees
+        // Always use Core Motion for reliable world-relative roll angle
+        // The RotationCoordinatorAngleProvider was returning preview rotation angles
+        // rather than the direct world-relative roll we need for the level indicator
+        let provider = MotionAngleProvider()
+        provider.start()
+        self.angleProvider = provider
+        hudView.setAngleProvider(provider)
     }
     
-    private func getHorizonStabilityMs() -> Int {
-        // For now, return a placeholder value
-        // This will be implemented with proper stability tracking
-        return 500
-    }
-    
-    private func analyzeFace(in imageBuffer: CVPixelBuffer) -> FaceAnalysis {
-        // For Week 1, return placeholder values
-        // Vision framework integration will come in Week 2-3
-        return FaceAnalysis(
-            rect: nil,
-            stableMs: 0,
-            sizePercentage: nil,
-            headroomPercentage: nil,
-            thirdsOffsetPercentage: nil
-        )
-    }
+    // Frame analysis is now handled by FrameAnalyzer
 }
 
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
@@ -260,51 +203,7 @@ extension CameraController: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 }
 
-// MARK: - Supporting Types
-private struct FaceAnalysis {
-    let rect: CGRect?
-    let stableMs: Int
-    let sizePercentage: Float?
-    let headroomPercentage: Float?
-    let thirdsOffsetPercentage: Float?
-}
-
-private struct FPSCalculator {
-    private var frameTimes: [TimeInterval] = []
-    private let maxSamples = 60 // 2 seconds at 30fps
-    
-    var currentFPS: Float {
-        guard frameTimes.count >= 2 else { return 0.0 }
-        let recent = Array(frameTimes.suffix(2))
-        let interval = recent[1] - recent[0]
-        return interval > 0 ? Float(1.0 / interval) : 0.0
-    }
-    
-    var averageFPS: Float {
-        guard frameTimes.count >= 2 else { return 0.0 }
-        let intervals = zip(frameTimes, frameTimes.dropFirst()).map { $1 - $0 }
-        let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
-        return avgInterval > 0 ? Float(1.0 / avgInterval) : 0.0
-    }
-    
-    var p95FPS: Float {
-        guard frameTimes.count >= 2 else { return 0.0 }
-        let intervals = zip(frameTimes, frameTimes.dropFirst()).map { $1 - $0 }
-        let sorted = intervals.sorted()
-        let p95Index = Int(Double(sorted.count) * 0.95)
-        let p95Interval = sorted[p95Index]
-        return p95Interval > 0 ? Float(1.0 / p95Interval) : 0.0
-    }
-    
-    mutating func updateFrame() {
-        let now = CACurrentMediaTime()
-        frameTimes.append(now)
-        
-        if frameTimes.count > maxSamples {
-            frameTimes.removeFirst()
-        }
-    }
-}
+// Frame analysis is now handled by FrameAnalyzer
 
 // MARK: - Errors
 public enum CameraError: LocalizedError {

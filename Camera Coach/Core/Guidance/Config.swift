@@ -20,17 +20,23 @@ enum Config {
     static let thermalGuardThreshold: ProcessInfo.ThermalState = .fair
     
     // MARK: - Guidance Engine
-    static let stabilityWindowMs: Int = 300
+    static let stabilityWindowMs: Int = 150   // Balanced stability - not too sensitive, not too slow
     static let ruleCooldownMs: Int = 600
     static let globalMaxPromptsPerSec: Int = 2
     static let postShutterCooldownMs: Int = 1500
-    static let maxPromptsPerMinute: Int = 8
+    static let maxPromptsPerMinute: Int = 15  // Balanced rate - not too spammy, not too restrictive
     static let maxSameTypePromptsPer10s: Int = 3
     
     // MARK: - Horizon Detection
-    static let horizonThresholdDegrees: Float = 3.0
-    static let horizonHysteresisDegrees: Float = 1.0
-    static let horizonLowPassAlpha: Float = 0.15
+    static let horizonThresholdDegrees: Float = 5.0  // 🚀 LESS AGGRESSIVE: Increased from 3° to 5° for red line
+    static let horizonHysteresisDegrees: Float = 2.0  // Increased hysteresis for smoother transitions
+    static let horizonLowPassAlpha: Float = 0.3  // Updated to match FrameAnalyzer
+    static let horizonDeadZoneDegrees: Float = 3.0  // 🚀 WIDER DEAD ZONE: Increased from 1.5° to 3° for less sensitivity
+    static let horizonGoodEnoughDegrees: Float = 4.0  // 🚀 MORE FORGIVING: Increased from 2° to 4° - consider "good enough" at ±4°
+    
+    // 🚀 VISUAL SMOOTHING: Reduce red line sensitivity for better UX
+    static let visualHorizonLowPassAlpha: Float = 0.1  // Heavy smoothing for visual display (vs 0.3 for guidance logic)
+    static let visualUpdateThresholdDegrees: Float = 0.5  // Only update visual if change > 0.5°
     
     // MARK: - Headroom Detection
     static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0

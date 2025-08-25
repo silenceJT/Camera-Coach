@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import AVFoundation
 import CoreMotion
 import Vision
 import CoreGraphics
@@ -21,6 +22,7 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     private var horizonHistory: [Float] = []
     private var horizonStabilityStart: Date?
     private var lastStableHorizon: Float = 0.0
+    private var currentRawHorizonDegrees: Float = 0.0  // 🚀 Store raw device tilt for visual display
     
     // MARK: - Face Detection
     private var faceDetectionRequest: VNDetectFaceRectanglesRequest?
@@ -69,6 +71,7 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
         // Create frame features
         let features = FrameFeatures(
             horizonDegrees: horizonDegrees,
+            rawHorizonDegrees: currentRawHorizonDegrees,  // 🚀 Pass raw device tilt for visual display
             horizonStableMs: horizonStableMs,
             faceRect: faceAnalysis.rect,
             faceStableMs: faceAnalysis.stableMs,
@@ -87,65 +90,162 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     
     // MARK: - Setup
     private func setupMotionManager() {
-        motionManager.deviceMotionUpdateInterval = 1.0 / 30.0 // 30Hz updates
+
         
-        if motionManager.isDeviceMotionAvailable {
-            motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-                guard let self = self, let motion = motion else { return }
-                
-                // Convert roll to degrees and apply low-pass filter
-                let rollDegrees = Float(motion.attitude.roll * 180.0 / .pi)
-                self.updateHorizonHistory(rollDegrees)
+        // Check if we have motion permissions
+        if !motionManager.isDeviceMotionAvailable {
+            return
+        }
+        
+        // Set update interval
+        motionManager.deviceMotionUpdateInterval = 1.0 / 20.0 // 20Hz updates (more appropriate for guidance)
+        
+        // Start motion updates with retry logic
+        startMotionUpdates()
+    }
+    
+    private func startMotionUpdates() {
+        guard motionManager.isDeviceMotionAvailable else {
+
+            return
+        }
+        
+        // Stop any existing updates first
+        if motionManager.isDeviceMotionActive {
+
+            motionManager.stopDeviceMotionUpdates()
+        }
+        
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                // Try to restart motion updates after a delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.startMotionUpdates()
+                }
+                return
+            }
+            
+            guard let motion = motion else { 
+                return 
+            }
+            
+            // 🚀 WORLD-RELATIVE HORIZON: Use gravity vector for proper world-relative roll calculation
+            // This approach correctly isolates the horizon roll from pitch and yaw movements
+            
+            let pitchDegrees = Float(motion.attitude.pitch * 180.0 / .pi)
+            
+            // 🚀 CORRECT HORIZON CALCULATION: Use device roll for horizon leveling
+            // The key insight: for horizon leveling, we want the roll angle relative to gravity
+            // Use the attitude.roll which gives us the rotation around the Z-axis (camera direction)
+            let deviceRollRadians = motion.attitude.roll
+            let deviceRollDegrees = Float(deviceRollRadians * 180.0 / .pi)
+            
+            // 🚀 CRITICAL FIX: Prevent discontinuities at ±180° boundary
+            // Normalize to [-90, 90] range for horizon display to avoid 360° jumps
+            let normalizedHorizonRoll: Float
+            if deviceRollDegrees > 90.0 {
+                normalizedHorizonRoll = deviceRollDegrees - 180.0
+            } else if deviceRollDegrees < -90.0 {
+                normalizedHorizonRoll = deviceRollDegrees + 180.0
+            } else {
+                normalizedHorizonRoll = deviceRollDegrees
+            }
+            
+
+            
+            // Always update the raw value for visual display
+            self.currentRawHorizonDegrees = normalizedHorizonRoll
+            
+            // Update horizon history with confidence levels based on device orientation
+            if abs(pitchDegrees) < 80.0 {
+                // High confidence: device is reasonably upright, horizon is meaningful
+                self.updateHorizonHistory(normalizedHorizonRoll)
+            } else if abs(pitchDegrees) < 85.0 {
+                // Medium confidence: device is tilted but horizon still somewhat meaningful
+                self.updateHorizonHistory(normalizedHorizonRoll)
+            } else {
+                // Low confidence: device is nearly vertical, but still update to avoid stuck line
+                self.updateHorizonHistory(normalizedHorizonRoll)
+            }
+        }
+        
+        // Verify motion updates started successfully
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            if self.motionManager.isDeviceMotionActive {
+                // Motion manager started successfully
+            } else {
+                // Motion manager failed to start - retrying
+                self.startMotionUpdates()
             }
         }
     }
     
     private func setupFaceDetection() {
-        faceDetectionRequest = VNDetectFaceRectanglesRequest { request, error in
-            // Face detection results will be processed in analyzeFrame
-        }
+        faceDetectionRequest = VNDetectFaceRectanglesRequest()
+        // Note: VNDetectFaceRectanglesRequest doesn't have maximumObservations
+        // It will detect all faces, we'll use the first one in analyzeFace
     }
     
     // MARK: - Horizon Analysis
     private func updateHorizonHistory(_ degrees: Float) {
-        // Apply low-pass filter (α ≈ 0.15 as per Config)
-        let alpha = Config.horizonLowPassAlpha
-        let filteredDegrees = alpha * degrees + (1 - alpha) * (horizonHistory.last ?? degrees)
+
+        
+        // 🚀 CRITICAL FIX: Improved low-pass filter for smoother horizon
+        // Previous α=0.15 was too aggressive, causing jerky guidance
+        // New α=0.3 provides better balance between responsiveness and stability
+        let alpha: Float = 0.3
+        let filteredDegrees: Float
+        
+        if horizonHistory.isEmpty {
+            filteredDegrees = degrees
+        } else {
+            let lastValue = horizonHistory.last!
+            filteredDegrees = lastValue + alpha * (degrees - lastValue)
+        }
         
         horizonHistory.append(filteredDegrees)
         
-        // Keep only recent history (last 30 samples = 1 second at 30Hz)
-        if horizonHistory.count > 30 {
+        // Keep only recent history (last 20 samples for 20Hz updates)
+        if horizonHistory.count > 20 {
             horizonHistory.removeFirst()
         }
+
         
         // Check stability
-        checkHorizonStability()
+        checkHorizonStability(filteredDegrees)
+    }
+    
+    private func checkHorizonStability(_ degrees: Float) {
+        // 🚀 CRITICAL FIX: Simplified horizon stability logic
+        // Previous logic was overly complex and could interfere with guidance generation
+        
+        let threshold = Config.horizonThresholdDegrees
+        let absDegrees = abs(degrees)
+        
+        if absDegrees <= threshold {
+            // Horizon is level - start counting stability
+            if horizonStabilityStart == nil {
+                horizonStabilityStart = Date()
+                // Horizon level - starting stability timer
+            }
+        } else {
+            // Horizon is tilted - start counting stability for tilted position
+            if horizonStabilityStart == nil {
+                horizonStabilityStart = Date()
+                // Horizon tilted - starting stability timer for tilted position
+            }
+        }
+        
+        // Note: We don't reset stability for tilted horizons anymore
+        // This allows guidance to trigger once the tilted position is stable
+        // This matches iOS Camera app behavior - it guides you to level, not to random positions
     }
     
     private func getCurrentHorizonDegrees() -> Float {
         return horizonHistory.last ?? 0.0
-    }
-    
-    private func checkHorizonStability() {
-        guard horizonHistory.count >= 10 else { return } // Need at least 10 samples
-        
-        let recentValues = Array(horizonHistory.suffix(10))
-        let mean = recentValues.reduce(0, +) / Float(recentValues.count)
-        let variance = recentValues.map { pow($0 - mean, 2) }.reduce(0, +) / Float(recentValues.count)
-        let stdDev = sqrt(variance)
-        
-        // Consider stable if standard deviation is below threshold
-        let stabilityThreshold: Float = 0.5 // degrees
-        
-        if stdDev < stabilityThreshold {
-            if horizonStabilityStart == nil {
-                horizonStabilityStart = Date()
-            }
-            lastStableHorizon = mean
-        } else {
-            horizonStabilityStart = nil
-        }
     }
     
     private func getHorizonStabilityMs() -> Int {
@@ -155,23 +255,106 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     
     // MARK: - Face Analysis
     private func analyzeFace(in imageBuffer: CVPixelBuffer) -> FaceAnalysis {
-        // For Week 2, implement basic face detection
-        // This will be enhanced in Week 3 with proper Vision framework integration
+        // Implement actual face detection using Vision framework
+        guard let faceRequest = faceDetectionRequest else {
+            return FaceAnalysis(
+                rect: nil,
+                stableMs: 0,
+                sizePercentage: nil,
+                headroomPercentage: nil,
+                thirdsOffsetPercentage: nil
+            )
+        }
         
-        // Placeholder implementation - return nil for now
-        // In a real implementation, we would:
-        // 1. Create VNImageRequestHandler with the imageBuffer
-        // 2. Perform face detection request
-        // 3. Calculate face metrics (size, position, stability)
-        // 4. Calculate headroom and thirds offset
+        // Create image request handler
+        let handler = VNImageRequestHandler(cvPixelBuffer: imageBuffer, options: [:])
         
-        return FaceAnalysis(
-            rect: nil,
-            stableMs: 0,
-            sizePercentage: nil,
-            headroomPercentage: nil,
-            thirdsOffsetPercentage: nil
-        )
+        do {
+            // Perform face detection
+            try handler.perform([faceRequest])
+            
+            // Process results
+            guard let results = faceRequest.results, !results.isEmpty else {
+                // No face detected
+                return FaceAnalysis(
+                    rect: nil,
+                    stableMs: 0,
+                    sizePercentage: nil,
+                    headroomPercentage: nil,
+                    thirdsOffsetPercentage: nil
+                )
+            }
+            
+            let face = results[0] // Use the largest/primary face
+            
+            // Convert normalized coordinates to image coordinates
+            let imageSize = CGSize(
+                width: CVPixelBufferGetWidth(imageBuffer),
+                height: CVPixelBufferGetHeight(imageBuffer)
+            )
+            
+            let faceRect = VNImageRectForNormalizedRect(
+                face.boundingBox,
+                Int(imageSize.width),
+                Int(imageSize.height)
+            )
+            
+            // Calculate face size as percentage of image
+            let faceArea = faceRect.width * faceRect.height
+            let imageArea = imageSize.width * imageSize.height
+            let sizePercentage = Float((faceArea / imageArea) * 100.0)
+            
+            // Calculate headroom (space above face)
+            let headroomPercentage = Float((faceRect.minY / imageSize.height) * 100.0)
+            
+            // Calculate thirds offset (horizontal position relative to center)
+            let faceCenterX = faceRect.midX
+            let imageCenterX = imageSize.width / 2
+            let offset = (faceCenterX - imageCenterX) / imageSize.width
+            let thirdsOffsetPercentage = Float(offset * 100.0)
+            
+            // Check face stability
+            let stableMs = checkFaceStability(faceCenter: CGPoint(x: faceRect.midX, y: faceRect.midY))
+            
+            return FaceAnalysis(
+                rect: faceRect,
+                stableMs: stableMs,
+                sizePercentage: sizePercentage,
+                headroomPercentage: headroomPercentage,
+                thirdsOffsetPercentage: thirdsOffsetPercentage
+            )
+        } catch {
+            // Face detection error - return empty analysis
+            return FaceAnalysis(
+                rect: nil,
+                stableMs: 0,
+                sizePercentage: nil,
+                headroomPercentage: nil,
+                thirdsOffsetPercentage: nil
+            )
+        }
+    }
+    
+    private func checkFaceStability(faceCenter: CGPoint) -> Int {
+        let currentCenter = faceCenter
+        
+        if let lastCenter = lastFaceCenter {
+            let distance = sqrt(pow(currentCenter.x - lastCenter.x, 2) + pow(currentCenter.y - lastCenter.y, 2))
+            let maxDistance: CGFloat = 20.0 // pixels
+            
+            if distance < maxDistance {
+                if faceStabilityStart == nil {
+                    faceStabilityStart = Date()
+                }
+            } else {
+                faceStabilityStart = nil
+            }
+        }
+        
+        lastFaceCenter = currentCenter
+        
+        guard let startTime = faceStabilityStart else { return 0 }
+        return Int(Date().timeIntervalSince(startTime) * 1000)
     }
     
     // MARK: - Performance Monitoring
@@ -210,6 +393,7 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     private func createEmptyFrameFeatures(startTime: TimeInterval) -> FrameFeatures {
         return FrameFeatures(
             horizonDegrees: getCurrentHorizonDegrees(),
+            rawHorizonDegrees: currentRawHorizonDegrees,  // 🚀 Pass raw device tilt for visual display
             horizonStableMs: getHorizonStabilityMs(),
             faceRect: nil,
             faceStableMs: 0,

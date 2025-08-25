@@ -12,12 +12,13 @@ public final class GuidanceHUDView: UIView {
     // MARK: - UI Components
     private let guidanceLabel = UILabel()
     private let gridView = CompositionGridView()
-    private let horizonLine = UIView()
+    private let levelIndicator = LevelIndicatorView()
     private let timestampLabel = UILabel()
     
     // MARK: - Properties
     private var currentGuidance: GuidanceAdvice?
     private var fadeAnimation: UIViewPropertyAnimator?
+    private var angleProvider: LevelAngleProvider?
     
     // MARK: - Initialization
     public override init(frame: CGRect) {
@@ -53,16 +54,12 @@ public final class GuidanceHUDView: UIView {
         timestampLabel.layer.masksToBounds = true
         timestampLabel.textAlignment = .center
         
-        // Setup horizon line
-        horizonLine.backgroundColor = UIColor.yellow.withAlphaComponent(0.8)
-        horizonLine.layer.shadowColor = UIColor.black.cgColor
-        horizonLine.layer.shadowOffset = CGSize(width: 0, height: 1)
-        horizonLine.layer.shadowOpacity = 0.5
-        horizonLine.layer.shadowRadius = 2
+        // Setup level indicator
+        levelIndicator.backgroundColor = .clear
         
         // Add subviews
         addSubview(gridView)
-        addSubview(horizonLine)
+        addSubview(levelIndicator)
         addSubview(guidanceLabel)
         addSubview(timestampLabel)
         
@@ -77,7 +74,7 @@ public final class GuidanceHUDView: UIView {
         gridView.translatesAutoresizingMaskIntoConstraints = false
         guidanceLabel.translatesAutoresizingMaskIntoConstraints = false
         timestampLabel.translatesAutoresizingMaskIntoConstraints = false
-        horizonLine.translatesAutoresizingMaskIntoConstraints = false
+        levelIndicator.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             // Grid covers entire view
@@ -99,11 +96,11 @@ public final class GuidanceHUDView: UIView {
             timestampLabel.widthAnchor.constraint(equalToConstant: 80),
             timestampLabel.heightAnchor.constraint(equalToConstant: 24),
             
-            // Horizon line at center
-            horizonLine.centerYAnchor.constraint(equalTo: centerYAnchor),
-            horizonLine.leadingAnchor.constraint(equalTo: leadingAnchor),
-            horizonLine.trailingAnchor.constraint(equalTo: trailingAnchor),
-            horizonLine.heightAnchor.constraint(equalToConstant: 2)
+            // Level indicator covers entire view for positioning flexibility
+            levelIndicator.topAnchor.constraint(equalTo: topAnchor),
+            levelIndicator.leadingAnchor.constraint(equalTo: leadingAnchor),
+            levelIndicator.trailingAnchor.constraint(equalTo: trailingAnchor),
+            levelIndicator.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
     }
     
@@ -117,7 +114,6 @@ public final class GuidanceHUDView: UIView {
         
         // Validate guidance
         guard guidance.isValid else {
-            print("Warning: Invalid guidance advice - \(guidance.displayText)")
             return
         }
         
@@ -165,14 +161,21 @@ public final class GuidanceHUDView: UIView {
     }
     
     public func updateHorizonAngle(_ degrees: Float) {
-        // Rotate the horizon line based on device orientation
-        let radians = CGFloat(degrees * .pi / 180.0)
-        horizonLine.transform = CGAffineTransform(rotationAngle: radians)
-        
-        // Show/hide horizon line based on angle
-        let shouldShow = abs(degrees) > Config.horizonThresholdDegrees
-        horizonLine.alpha = shouldShow ? 0.8 : 0.0
+        // 🚀 NEW: Use proper Level Indicator instead of rotating line
+        levelIndicator.update(angleDeg: degrees)
     }
+    
+    public func setAngleProvider(_ provider: LevelAngleProvider) {
+        self.angleProvider = provider
+    }
+    
+    public func updateLevelIndicator() {
+        guard let provider = angleProvider else { return }
+        let angle = provider.currentLevelAngleDeg()
+        levelIndicator.update(angleDeg: angle)
+    }
+    
+
     
     public func updateTimestamp(_ timestamp: String) {
         timestampLabel.text = timestamp
