@@ -37,18 +37,20 @@ public final class CameraViewController: UIViewController {
     private let cameraView = UIView()
     
     private var isSessionActive = false
+    private var hasAttemptedCameraSetup = false
+    private var hasShownError = false
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Lifecycle
     public override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupCamera()
+        // Don't setup camera here - wait for view layout
     }
     
     public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        startCameraSession()
+        // Don't start session here - wait for camera setup
     }
     
     public override func viewWillDisappear(_ animated: Bool) {
@@ -58,7 +60,13 @@ public final class CameraViewController: UIViewController {
     
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // Preview layer frame is handled by the coordinator now
+        
+        // Only setup once when bounds are valid and camera not already active
+        if !isSessionActive && !hasAttemptedCameraSetup && view.bounds.width > 0 && view.bounds.height > 0 {
+            print("📱 Setting up camera...")
+            hasAttemptedCameraSetup = true
+            setupCamera()
+        }
     }
     
     // MARK: - UI Setup
@@ -123,6 +131,8 @@ public final class CameraViewController: UIViewController {
         
         do {
             try coordinator.setupCamera(in: cameraView)
+            // Start the camera session immediately after setup
+            coordinator.startSession()
         } catch {
             print("Failed to setup camera: \(error.localizedDescription)")
             showCameraError(error)
@@ -146,6 +156,14 @@ public final class CameraViewController: UIViewController {
     
     // MARK: - Error Handling
     private func showCameraError(_ error: Error) {
+        // Only show error once to prevent multiple alerts
+        guard !hasShownError else {
+            print("📱 Error already shown, skipping alert")
+            return
+        }
+        
+        hasShownError = true
+        
         let alert = UIAlertController(
             title: "Camera Error",
             message: error.localizedDescription,

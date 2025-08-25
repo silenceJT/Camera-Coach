@@ -87,6 +87,19 @@ public struct FrameFeatures {
         return processingLatencyMs <= Config.maxFrameLoopLatencyMs && 
                currentFPS >= Float(Config.minStableFPS)
     }
+    
+    // MARK: - Additional Computed Properties
+    public var calculatedHeadroomPercentage: Float? {
+        guard let faceSize = faceSizePercentage else { return nil }
+        return 100.0 - faceSize
+    }
+    
+    public var calculatedThirdsOffset: Float? {
+        guard let faceRect = faceRect else { return nil }
+        let faceCenterX = faceRect.midX
+        let offset = (faceCenterX - 0.5) * 100 // Convert to percentage
+        return Float(offset)
+    }
 }
 
 // MARK: - Extensions for Testing
