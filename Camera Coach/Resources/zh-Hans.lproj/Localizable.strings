@@ -1,0 +1,49 @@
+// Settings Screen
+"settings.title" = "设置";
+"settings.done" = "完成";
+"settings.privacy_data" = "隐私与数据";
+"settings.postshot_cloud" = "拍照后云分析";
+"settings.daily_upload_limit" = "每日上传限制";
+"settings.wifi_only" = "仅Wi-Fi";
+"settings.performance" = "性能";
+"settings.target_fps" = "目标帧率";
+"settings.max_latency" = "最大延迟";
+"settings.export_debug" = "导出与调试";
+"settings.export_logs" = "导出日志";
+"settings.reset_settings" = "重置设置";
+
+// Camera Errors
+"camera.error.title" = "相机错误";
+"camera.error.ok" = "确定";
+"camera.error.back_not_found" = "未找到后置相机";
+"camera.error.cannot_add_input" = "无法添加相机输入";
+"camera.error.cannot_add_output" = "无法添加相机输出";
+"camera.error.preview_failed" = "无法创建预览层";
+
+// Guidance Actions
+"guidance.rotate_left" = "向左旋转%d°";
+"guidance.rotate_right" = "向右旋转%d°";
+"guidance.tilt_up" = "向上倾斜%d°";
+"guidance.tilt_down" = "向下倾斜%d°";
+"guidance.move_left" = "向左移动%d%%";
+"guidance.move_right" = "向右移动%d%%";
+
+// Guidance Reasons
+"guidance.reason.better_headroom" = "更好的头部空间";
+"guidance.reason.better_framing" = "更好的构图";
+"guidance.reason.level_horizon" = "水平地平线";
+"guidance.reason.better_composition" = "更好的构图";
+
+// Micro Survey
+"survey.title" = "这个指导有帮助吗？";
+"survey.subtitle" = "您的反馈有助于改进指导功能";
+"survey.no" = "否";
+"survey.yes" = "是";
+"survey.satisfaction" = "总体满意度";
+"survey.skip" = "跳过";
+"survey.submit" = "提交";
+"survey.thank_you" = "谢谢！";
+
+// Accessibility
+"accessibility.level" = "水平";
+"accessibility.stable" = "稳定";

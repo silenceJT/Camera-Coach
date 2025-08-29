@@ -19,17 +19,17 @@ public enum GuidanceAction {
     var displayText: String {
         switch self {
         case .rotateLeft(let degrees):
-            return "Rotate left \(degrees)°"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.rotate_left", comment: "Rotate left guidance"), degrees)
         case .rotateRight(let degrees):
-            return "Rotate right \(degrees)°"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.rotate_right", comment: "Rotate right guidance"), degrees)
         case .tiltUp(let degrees):
-            return "Tilt up \(degrees)°"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.tilt_up", comment: "Tilt up guidance"), degrees)
         case .tiltDown(let degrees):
-            return "Tilt down \(degrees)°"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.tilt_down", comment: "Tilt down guidance"), degrees)
         case .moveLeft(let percentage):
-            return "Move left \(percentage)%"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_left", comment: "Move left guidance"), percentage)
         case .moveRight(let percentage):
-            return "Move right \(percentage)%"
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_right", comment: "Move right guidance"), percentage)
         }
     }
 }

@@ -10,28 +10,43 @@ import SwiftUI
 import UIKit
 import Combine
 
-public struct CameraView: UIViewControllerRepresentable {
+public struct CameraView: View {
     // MARK: - Properties
     @ObservedObject private var coordinator = CameraCoordinator()
     
-    // MARK: - UIViewControllerRepresentable
-    public func makeUIViewController(context: Context) -> CameraViewController {
+    // MARK: - Body
+    public var body: some View {
+        CameraViewControllerRepresentable(
+            coordinator: coordinator,
+            onPhotoTaken: {
+                // Silent metric collection only - no UI interruption
+            }
+        )
+    }
+}
+
+// MARK: - UIViewControllerRepresentable Wrapper
+private struct CameraViewControllerRepresentable: UIViewControllerRepresentable {
+    let coordinator: CameraCoordinator
+    let onPhotoTaken: () -> Void
+    
+    func makeUIViewController(context: Context) -> CameraViewController {
         let cameraVC = CameraViewController()
         cameraVC.coordinator = coordinator
+        cameraVC.onPhotoTaken = onPhotoTaken
         return cameraVC
     }
     
-    public func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
+    func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
         // Handle any updates if needed
     }
-    
-    // No coordinator needed - we use the CameraCoordinator directly
 }
 
 // MARK: - Camera View Controller
 public final class CameraViewController: UIViewController {
     // MARK: - Properties
     public var coordinator: CameraCoordinator?
+    public var onPhotoTaken: (() -> Void)?
     
     private let hudView = GuidanceHUDView()
     private let cameraView = UIView()
@@ -171,12 +186,12 @@ public final class CameraViewController: UIViewController {
         hasShownError = true
         
         let alert = UIAlertController(
-            title: "Camera Error",
+            title: NSLocalizedString("camera.error.title", comment: "Camera error alert title"),
             message: error.localizedDescription,
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("camera.error.ok", comment: "Camera error OK button"), style: .default))
         present(alert, animated: true)
     }
     
@@ -197,7 +212,8 @@ public final class CameraViewController: UIViewController {
         let feedback = UIImpactFeedbackGenerator(style: .medium)
         feedback.impactOccurred()
         
-        // Could add photo preview or other feedback here
+        // Silent metric collection handled by coordinator
+        onPhotoTaken?()
     }
 }
 
