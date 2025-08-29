@@ -16,6 +16,7 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     private let frameAnalyzer = FrameAnalyzer()
     private var guidanceEngine: GuidanceEngine!
     public private(set) weak var hudView: GuidanceHUDView?
+    private let feedbackManager = FeedbackManager.shared
     
     // MARK: - Published Properties
     @Published var currentGuidance: GuidanceAdvice?
@@ -25,6 +26,11 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     // MARK: - Performance Monitoring
     private var lastGuidanceTime: Date = Date.distantPast
     private var guidanceCount = 0
+    
+    // MARK: - Session Tracking
+    private var sessionStartTime: Date = Date()
+    private var sessionId: String = UUID().uuidString
+    private var consecutivePhotos: Int = 0
     
     // MARK: - Initialization
     public override init() {
@@ -48,16 +54,29 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     
     public func startSession() {
         cameraController.startSession()
+        
+        // Initialize session tracking
+        sessionStartTime = Date()
+        sessionId = UUID().uuidString
+        consecutivePhotos = 0
     }
     
     public func stopSession() {
         cameraController.stopSession()
+        
+        // Trigger feedback collection at session end (strategic timing)
+        feedbackManager.triggerFeedbackIfReady(.sessionEnd)
     }
     
     public func onShutter() {
         guidanceEngine.onShutter()
         isGuidanceActive = false
+        
+        // Collect silent metrics before capture
+        collectPhotoMetrics()
+        
         currentGuidance = nil
+        consecutivePhotos += 1
         
         // Trigger photo capture
         cameraController.capturePhoto()
@@ -65,6 +84,30 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     
     public func onPhotoKept(_ kept: Bool) {
         guidanceEngine.onPhotoKept(kept)
+    }
+    
+    // MARK: - Private Methods - Metrics Collection
+    private func collectPhotoMetrics() {
+        let currentTime = Date()
+        let sessionDuration = currentTime.timeIntervalSince(sessionStartTime)
+        let timeSinceLastGuidance = currentTime.timeIntervalSince(lastGuidanceTime)
+        
+        let metrics = PhotoCaptureMetrics(
+            timestamp: currentTime,
+            guidanceActive: isGuidanceActive,
+            lastGuidanceType: currentGuidance?.type,
+            timeSinceLastGuidance: timeSinceLastGuidance,
+            deviceOrientation: UIDevice.current.orientation,
+            thermalState: ProcessInfo.processInfo.thermalState,
+            sessionDuration: sessionDuration,
+            cameraSession: sessionId,
+            consecutivePhotos: consecutivePhotos,
+            guidanceAdopted: false, // TODO: Implement proper guidance adoption tracking
+            horizonAngleAtCapture: currentFrameFeatures?.horizonDegrees ?? 0.0
+        )
+        
+        // Silent collection - no UI interruption
+        feedbackManager.collectPhotoMetrics(metrics)
     }
     
     // MARK: - FrameFeaturesProvider

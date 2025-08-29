@@ -133,6 +133,20 @@ public final class Logger: ObservableObject {
         os_log(.info, log: osLog, "Photo kept: %{public}@", kept ? "true" : "false")
     }
     
+    public func logMicroSurvey(helpful: Bool, satisfaction: Int) {
+        let event = LogEvent(
+            name: "micro_survey",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "helpful": helpful ? "true" : "false",
+                "satisfaction": String(satisfaction)
+            ]
+        )
+        
+        logEvent(event)
+        os_log(.info, log: osLog, "Micro-survey - Helpful: %{public}@, Satisfaction: %d", helpful ? "true" : "false", satisfaction)
+    }
+    
     // MARK: - Performance Events
     public func logFPSSample(average: Float, p95: Float) {
         let event = LogEvent(
@@ -177,7 +191,7 @@ public final class Logger: ObservableObject {
     }
     
     // MARK: - Private Methods
-    private func logEvent(_ event: LogEvent) {
+    public func logEvent(_ event: LogEvent) {
         queue.async {
             self.sessionEvents.append(event)
         }
@@ -245,10 +259,16 @@ public final class Logger: ObservableObject {
 }
 
 // MARK: - Data Models
-private struct LogEvent {
+public struct LogEvent {
     let name: String
     let timestamp: TimeInterval
     let parameters: [String: String]
+    
+    public init(name: String, timestamp: TimeInterval, parameters: [String: String]) {
+        self.name = name
+        self.timestamp = timestamp
+        self.parameters = parameters
+    }
 }
 
 private struct PerformanceMetric {

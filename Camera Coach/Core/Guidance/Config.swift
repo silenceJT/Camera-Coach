@@ -20,7 +20,7 @@ enum Config {
     static let thermalGuardThreshold: ProcessInfo.ThermalState = .fair
     
     // MARK: - Guidance Engine
-    static let stabilityWindowMs: Int = 150   // Balanced stability - not too sensitive, not too slow
+    static let stabilityWindowMs: Int = 300   // 🎯 WEEK 2 SPEC: ≥300ms stability window per FSM specification
     static let ruleCooldownMs: Int = 600
     static let globalMaxPromptsPerSec: Int = 2
     static let postShutterCooldownMs: Int = 1500
@@ -28,11 +28,11 @@ enum Config {
     static let maxSameTypePromptsPer10s: Int = 3
     
     // MARK: - Horizon Detection
-    static let horizonThresholdDegrees: Float = 5.0  // 🚀 LESS AGGRESSIVE: Increased from 3° to 5° for red line
+    static let horizonThresholdDegrees: Float = 3.0  // 🎯 WEEK 2 SPEC: |θ|>3° → emit guidance per specification
     static let horizonHysteresisDegrees: Float = 2.0  // Increased hysteresis for smoother transitions
     static let horizonLowPassAlpha: Float = 0.3  // Updated to match FrameAnalyzer
-    static let horizonDeadZoneDegrees: Float = 3.0  // 🚀 WIDER DEAD ZONE: Increased from 1.5° to 3° for less sensitivity
-    static let horizonGoodEnoughDegrees: Float = 4.0  // 🚀 MORE FORGIVING: Increased from 2° to 4° - consider "good enough" at ±4°
+    static let horizonDeadZoneDegrees: Float = 2.0  // Adjusted to match stricter threshold
+    static let horizonGoodEnoughDegrees: Float = 3.0  // Aligned with threshold for consistency
     
     // 🚀 VISUAL SMOOTHING: Reduce red line sensitivity for better UX
     static let visualHorizonLowPassAlpha: Float = 0.1  // Heavy smoothing for visual display (vs 0.3 for guidance logic)

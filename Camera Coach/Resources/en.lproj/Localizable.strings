@@ -1,0 +1,49 @@
+// Settings Screen
+"settings.title" = "Settings";
+"settings.done" = "Done";
+"settings.privacy_data" = "Privacy & Data";
+"settings.postshot_cloud" = "Post-shot Cloud Analysis";
+"settings.daily_upload_limit" = "Daily Upload Limit";
+"settings.wifi_only" = "Wi-Fi Only";
+"settings.performance" = "Performance";
+"settings.target_fps" = "Target FPS";
+"settings.max_latency" = "Max Latency";
+"settings.export_debug" = "Export & Debug";
+"settings.export_logs" = "Export Logs";
+"settings.reset_settings" = "Reset Settings";
+
+// Camera Errors
+"camera.error.title" = "Camera Error";
+"camera.error.ok" = "OK";
+"camera.error.back_not_found" = "Back camera not found";
+"camera.error.cannot_add_input" = "Cannot add camera input";
+"camera.error.cannot_add_output" = "Cannot add camera output";
+"camera.error.preview_failed" = "Failed to create preview layer";
+
+// Guidance Actions
+"guidance.rotate_left" = "Rotate left %d°";
+"guidance.rotate_right" = "Rotate right %d°";
+"guidance.tilt_up" = "Tilt up %d°";
+"guidance.tilt_down" = "Tilt down %d°";
+"guidance.move_left" = "Move left %d%%";
+"guidance.move_right" = "Move right %d%%";
+
+// Guidance Reasons
+"guidance.reason.better_headroom" = "Better headroom";
+"guidance.reason.better_framing" = "Better framing";
+"guidance.reason.level_horizon" = "Level horizon";
+"guidance.reason.better_composition" = "Better composition";
+
+// Micro Survey
+"survey.title" = "Was that guidance helpful?";
+"survey.subtitle" = "Your feedback helps improve the coaching";
+"survey.no" = "No";
+"survey.yes" = "Yes";
+"survey.satisfaction" = "Overall satisfaction";
+"survey.skip" = "Skip";
+"survey.submit" = "Submit";
+"survey.thank_you" = "Thank you!";
+
+// Accessibility
+"accessibility.level" = "Level";
+"accessibility.stable" = "Stable";
