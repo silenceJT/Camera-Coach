@@ -17,12 +17,18 @@ public struct FrameFeatures {
     public let horizonStableMs: Int    // milliseconds horizon has been stable
     
     // MARK: - Face Detection
-    public let faceRect: CGRect?       // normalized [0,1] coordinates, nil if no face
+    public let faceRect: CGRect?       // normalized [0,1] coordinates, nil if no face (primary subject)
     public let faceStableMs: Int       // milliseconds face center variance below threshold
     public let faceSizePercentage: Float? // % of frame height
     
+    // MARK: - Multi-Face Detection (NEW)
+    public let allFaceRects: [CGRect]  // all detected faces in normalized coordinates
+    public let faceCount: Int          // total number of detected faces
+    public let groupHeadroomPercentage: Float? // % of frame height above topmost face
+    public let primaryFaceIndex: Int?  // index of primary subject in allFaceRects (nil if no faces)
+    
     // MARK: - Composition
-    public let headroomPercentage: Float?  // % of frame height above face
+    public let headroomPercentage: Float?  // % of frame height above face (primary subject - LEGACY)
     public let thirdsOffsetPercentage: Float? // horizontal offset from rule of thirds (0 = perfect)
     
     // MARK: - Performance
@@ -41,6 +47,10 @@ public struct FrameFeatures {
         faceRect: CGRect?,
         faceStableMs: Int,
         faceSizePercentage: Float?,
+        allFaceRects: [CGRect] = [],
+        faceCount: Int = 0,
+        groupHeadroomPercentage: Float? = nil,
+        primaryFaceIndex: Int? = nil,
         headroomPercentage: Float?,
         thirdsOffsetPercentage: Float?,
         timestamp: TimeInterval,
@@ -54,6 +64,10 @@ public struct FrameFeatures {
         self.faceRect = faceRect
         self.faceStableMs = faceStableMs
         self.faceSizePercentage = faceSizePercentage
+        self.allFaceRects = allFaceRects
+        self.faceCount = faceCount
+        self.groupHeadroomPercentage = groupHeadroomPercentage
+        self.primaryFaceIndex = primaryFaceIndex
         self.headroomPercentage = headroomPercentage
         self.thirdsOffsetPercentage = thirdsOffsetPercentage
         self.timestamp = timestamp
@@ -79,6 +93,20 @@ public struct FrameFeatures {
     public var isHeadroomInTarget: Bool {
         guard let headroom = headroomPercentage else { return false }
         return Config.targetHeadroomPercentage.contains(headroom)
+    }
+    
+    public var isGroupHeadroomInTarget: Bool {
+        guard let groupHeadroom = groupHeadroomPercentage else { return false }
+        return Config.targetHeadroomPercentage.contains(groupHeadroom)
+    }
+    
+    public var hasMultipleFaces: Bool {
+        return faceCount > 1
+    }
+    
+    public var primaryFaceRect: CGRect? {
+        guard let index = primaryFaceIndex, index < allFaceRects.count else { return faceRect }
+        return allFaceRects[index]
     }
     
     public var isThirdsAligned: Bool {
@@ -115,6 +143,10 @@ extension FrameFeatures {
         faceRect: CGRect? = CGRect(x: 0.5, y: 0.4, width: 0.2, height: 0.3),
         faceStableMs: Int = 500,
         faceSizePercentage: Float? = 8.0,
+        allFaceRects: [CGRect] = [CGRect(x: 0.5, y: 0.4, width: 0.2, height: 0.3)],
+        faceCount: Int = 1,
+        groupHeadroomPercentage: Float? = 10.0,
+        primaryFaceIndex: Int? = 0,
         headroomPercentage: Float? = 10.0,
         thirdsOffsetPercentage: Float? = 0.0
     ) -> FrameFeatures {
@@ -125,6 +157,10 @@ extension FrameFeatures {
             faceRect: faceRect,
             faceStableMs: faceStableMs,
             faceSizePercentage: faceSizePercentage,
+            allFaceRects: allFaceRects,
+            faceCount: faceCount,
+            groupHeadroomPercentage: groupHeadroomPercentage,
+            primaryFaceIndex: primaryFaceIndex,
             headroomPercentage: headroomPercentage,
             thirdsOffsetPercentage: thirdsOffsetPercentage,
             timestamp: Date().timeIntervalSince1970,

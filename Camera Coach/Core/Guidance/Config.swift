@@ -10,7 +10,7 @@ import Foundation
 
 enum Config {
     // MARK: - Camera Settings
-    static let cameraResolution = CGSize(width: 1280, height: 720)
+    static let cameraResolution = CGSize(width: 1280, height: 960)  // 4:3 aspect ratio like iPhone camera
     static let targetFPS: Int = 30
     static let fallbackFPS: Int = 24
     
@@ -38,16 +38,30 @@ enum Config {
     static let visualHorizonLowPassAlpha: Float = 0.1  // Heavy smoothing for visual display (vs 0.3 for guidance logic)
     static let visualUpdateThresholdDegrees: Float = 0.5  // Only update visual if change > 0.5°
     
-    // MARK: - Headroom Detection
-    static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0
-    static let headroomToleranceDegrees: Float = 2.0
+    // MARK: - Headroom Detection (Relaxed for letterbox camera view)
+    static let targetHeadroomPercentage: ClosedRange<Float> = 5.0...20.0  // Much wider range for easier positioning
+    static let headroomToleranceDegrees: Float = 3.0  // More tolerance before triggering guidance
+    
+    // 🚀 WEEK 3: Enhanced Headroom Configuration
+    static let maxHeadroomAdjustmentDegrees: Int = 8  // Cap tilt adjustments
+    static let maxHeadroomPromptsPerSession: Int = 2  // Prevent headroom spam per Week 3 spec
     
     // MARK: - Rule of Thirds
     static let thirdsTolerancePercentage: Float = 15.0
     
     // MARK: - Face Detection
-    static let minFaceSizePercentage: Float = 2.0
+    static let minFaceSizePercentage: Float = 1.0  // 🚀 Reduced from 2% to 1% for far-distance detection
     static let faceStabilityThresholdMs: Int = 300
+    
+    // 🚀 WEEK 3: Enhanced distance detection settings
+    static let enableFarDistanceDetection: Bool = true
+    static let farDistanceMinFaceSizePercentage: Float = 0.5  // Even smaller faces for far shots
+    
+    // 🚀 MULTI-FACE ENHANCEMENT: Group headroom configuration
+    static let enableGroupHeadroomGuidance: Bool = true          // Enable multi-face headroom strategy
+    static let groupHeadroomThreshold: Int = 2                   // Switch to group strategy at 2+ faces
+    static let groupHeadroomConfidenceBoost: Float = 0.1         // Increase confidence for group guidance
+    static let maxTrackedFaces: Int = 10                         // Limit face tracking for performance
     
     // MARK: - HUD Animation
     static let hudFadeInDuration: TimeInterval = 0.8

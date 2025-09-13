@@ -76,6 +76,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             faceRect: faceAnalysis.rect,
             faceStableMs: faceAnalysis.stableMs,
             faceSizePercentage: faceAnalysis.sizePercentage,
+            allFaceRects: faceAnalysis.allFaceRects,
+            faceCount: faceAnalysis.faceCount,
+            groupHeadroomPercentage: faceAnalysis.groupHeadroomPercentage,
+            primaryFaceIndex: faceAnalysis.primaryFaceIndex,
             headroomPercentage: faceAnalysis.headroomPercentage,
             thirdsOffsetPercentage: faceAnalysis.thirdsOffsetPercentage,
             timestamp: startTime,
@@ -255,15 +259,8 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     
     // MARK: - Face Analysis
     private func analyzeFace(in imageBuffer: CVPixelBuffer) -> FaceAnalysis {
-        // Implement actual face detection using Vision framework
         guard let faceRequest = faceDetectionRequest else {
-            return FaceAnalysis(
-                rect: nil,
-                stableMs: 0,
-                sizePercentage: nil,
-                headroomPercentage: nil,
-                thirdsOffsetPercentage: nil
-            )
+            return createEmptyFaceAnalysis()
         }
         
         // Create image request handler
@@ -273,88 +270,195 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             // Perform face detection
             try handler.perform([faceRequest])
             
-            // Process results
+            // Process results - now handling multiple faces
             guard let results = faceRequest.results, !results.isEmpty else {
-                // No face detected
-                return FaceAnalysis(
-                    rect: nil,
-                    stableMs: 0,
-                    sizePercentage: nil,
-                    headroomPercentage: nil,
-                    thirdsOffsetPercentage: nil
-                )
+                resetFaceStability()
+                return createEmptyFaceAnalysis()
             }
             
-            let face = results[0] // Use the largest/primary face
-            
-            // Convert normalized coordinates to image coordinates
+            // 🚀 MULTI-FACE ENHANCEMENT: Process all detected faces
             let imageSize = CGSize(
                 width: CVPixelBufferGetWidth(imageBuffer),
                 height: CVPixelBufferGetHeight(imageBuffer)
             )
             
-            let faceRect = VNImageRectForNormalizedRect(
-                face.boundingBox,
-                Int(imageSize.width),
-                Int(imageSize.height)
-            )
+            // Convert all faces to image coordinates and filter by size
+            let allFaceRects = results.compactMap { face -> CGRect? in
+                let rect = VNImageRectForNormalizedRect(face.boundingBox, Int(imageSize.width), Int(imageSize.height))
+                let area = rect.width * rect.height
+                let imageArea = imageSize.width * imageSize.height
+                let sizePercentage = Float((area / imageArea) * 100.0)
+                
+                let minSizeThreshold = Config.enableFarDistanceDetection ? Config.farDistanceMinFaceSizePercentage : Config.minFaceSizePercentage
+                return sizePercentage >= minSizeThreshold ? rect : nil
+            }
             
-            // Calculate face size as percentage of image
-            let faceArea = faceRect.width * faceRect.height
+            // If no faces meet size requirements, return empty
+            guard !allFaceRects.isEmpty else {
+                resetFaceStability()
+                return createEmptyFaceAnalysis()
+            }
+            
+            // Select primary subject from valid faces
+            let validFaces = results.filter { face in
+                let rect = VNImageRectForNormalizedRect(face.boundingBox, Int(imageSize.width), Int(imageSize.height))
+                return allFaceRects.contains(rect)
+            }
+            
+            guard let primaryFace = selectPrimarySubject(from: validFaces, imageSize: imageSize),
+                  let primaryFaceIndex = validFaces.firstIndex(of: primaryFace) else {
+                resetFaceStability()
+                return createEmptyFaceAnalysis()
+            }
+            
+            let primaryFaceRect = allFaceRects[primaryFaceIndex]
+            
+            // Calculate primary face metrics (for legacy compatibility)
+            let faceArea = primaryFaceRect.width * primaryFaceRect.height
             let imageArea = imageSize.width * imageSize.height
             let sizePercentage = Float((faceArea / imageArea) * 100.0)
+            let headroomPercentage = Float((primaryFaceRect.minY / imageSize.height) * 100.0)
             
-            // Calculate headroom (space above face)
-            let headroomPercentage = Float((faceRect.minY / imageSize.height) * 100.0)
+            // 🚀 GROUP HEADROOM CALCULATION: Find topmost face for group headroom
+            let topmostY = allFaceRects.map { $0.minY }.min() ?? primaryFaceRect.minY
+            let groupHeadroomPercentage = Float((topmostY / imageSize.height) * 100.0)
             
-            // Calculate thirds offset (horizontal position relative to center)
-            let faceCenterX = faceRect.midX
+            // 🚀 DEBUG: Log multi-face detection
+            print("🔍 FACES DETECTED: Count=\(allFaceRects.count), Primary Headroom=\(String(format: "%.1f", headroomPercentage))%, Group Headroom=\(String(format: "%.1f", groupHeadroomPercentage))%")
+            
+            // Calculate thirds offset (based on primary face)
+            let faceCenterX = primaryFaceRect.midX
             let imageCenterX = imageSize.width / 2
             let offset = (faceCenterX - imageCenterX) / imageSize.width
             let thirdsOffsetPercentage = Float(offset * 100.0)
             
-            // Check face stability
-            let stableMs = checkFaceStability(faceCenter: CGPoint(x: faceRect.midX, y: faceRect.midY))
+            // Check face stability with enhanced tracking (based on primary face)
+            let stableMs = checkFaceStability(faceCenter: CGPoint(x: primaryFaceRect.midX, y: primaryFaceRect.midY))
             
             return FaceAnalysis(
-                rect: faceRect,
+                rect: primaryFaceRect,
                 stableMs: stableMs,
                 sizePercentage: sizePercentage,
                 headroomPercentage: headroomPercentage,
-                thirdsOffsetPercentage: thirdsOffsetPercentage
+                thirdsOffsetPercentage: thirdsOffsetPercentage,
+                allFaceRects: allFaceRects,
+                faceCount: allFaceRects.count,
+                groupHeadroomPercentage: groupHeadroomPercentage,
+                primaryFaceIndex: primaryFaceIndex
             )
         } catch {
-            // Face detection error - return empty analysis
-            return FaceAnalysis(
-                rect: nil,
-                stableMs: 0,
-                sizePercentage: nil,
-                headroomPercentage: nil,
-                thirdsOffsetPercentage: nil
-            )
+            resetFaceStability()
+            return createEmptyFaceAnalysis()
         }
     }
     
+    // 🚀 WEEK 3: Primary Subject Selection Algorithm
+    private func selectPrimarySubject(from faces: [VNFaceObservation], imageSize: CGSize) -> VNFaceObservation? {
+        guard !faces.isEmpty else { return nil }
+        
+        // Convert all faces to image coordinates for analysis
+        let faceRects = faces.map { face -> (face: VNFaceObservation, rect: CGRect, area: CGFloat) in
+            let rect = VNImageRectForNormalizedRect(face.boundingBox, Int(imageSize.width), Int(imageSize.height))
+            let area = rect.width * rect.height
+            return (face: face, rect: rect, area: area)
+        }
+        
+        // Filter faces that meet minimum size requirement
+        let minArea = imageSize.width * imageSize.height * CGFloat(Config.minFaceSizePercentage / 100.0)
+        let validFaces = faceRects.filter { $0.area >= minArea }
+        
+        guard !validFaces.isEmpty else { return nil }
+        
+        // Primary subject selection criteria:
+        // 1. Largest face (most prominent subject)
+        // 2. Most central face (better composition)
+        // 3. Prefer faces in upper 2/3 of frame (portrait convention)
+        
+        let scoredFaces = validFaces.map { faceData -> (face: VNFaceObservation, score: Float) in
+            let rect = faceData.rect
+            let area = faceData.area
+            
+            // Size score: larger faces score higher (40% weight)
+            let maxArea = validFaces.max(by: { $0.area < $1.area })?.area ?? 1.0
+            let sizeScore = Float(area / maxArea) * 0.4
+            
+            // Centrality score: faces closer to center score higher (30% weight)
+            let centerX = imageSize.width / 2
+            let faceDistance = abs(rect.midX - centerX)
+            let maxDistance = imageSize.width / 2
+            let centralityScore = (1.0 - Float(faceDistance / maxDistance)) * 0.3
+            
+            // Vertical position score: faces in upper 2/3 score higher (30% weight)
+            let upperThird = imageSize.height / 3
+            let verticalScore: Float
+            if rect.midY <= upperThird {
+                verticalScore = 0.3  // Upper third: full score
+            } else if rect.midY <= (2 * upperThird) {
+                verticalScore = 0.2  // Middle third: partial score
+            } else {
+                verticalScore = 0.1  // Lower third: minimal score
+            }
+            
+            let totalScore = sizeScore + centralityScore + verticalScore
+            return (face: faceData.face, score: totalScore)
+        }
+        
+        // Return the highest scoring face
+        return scoredFaces.max(by: { $0.score < $1.score })?.face
+    }
+    
+    private func createEmptyFaceAnalysis() -> FaceAnalysis {
+        return FaceAnalysis(
+            rect: nil,
+            stableMs: 0,
+            sizePercentage: nil,
+            headroomPercentage: nil,
+            thirdsOffsetPercentage: nil,
+            allFaceRects: [],
+            faceCount: 0,
+            groupHeadroomPercentage: nil,
+            primaryFaceIndex: nil
+        )
+    }
+    
+    private func resetFaceStability() {
+        faceStabilityStart = nil
+        lastFaceCenter = nil
+    }
+    
+    // 🚀 WEEK 3: Enhanced Face Stability Tracking
     private func checkFaceStability(faceCenter: CGPoint) -> Int {
         let currentCenter = faceCenter
         
         if let lastCenter = lastFaceCenter {
             let distance = sqrt(pow(currentCenter.x - lastCenter.x, 2) + pow(currentCenter.y - lastCenter.y, 2))
-            let maxDistance: CGFloat = 20.0 // pixels
             
-            if distance < maxDistance {
+            // 🚀 Dynamic stability threshold based on face size and movement patterns
+            // Larger faces can tolerate more movement, smaller faces need to be more stable
+            let baseThreshold: CGFloat = 15.0 // base threshold in pixels
+            let dynamicThreshold = baseThreshold // Could adjust based on face size in future
+            
+            if distance < dynamicThreshold {
+                // Face is stable - start or continue counting
                 if faceStabilityStart == nil {
                     faceStabilityStart = Date()
                 }
             } else {
+                // Face moved too much - reset stability
                 faceStabilityStart = nil
             }
+        } else {
+            // First face detection - start stability tracking
+            faceStabilityStart = Date()
         }
         
         lastFaceCenter = currentCenter
         
         guard let startTime = faceStabilityStart else { return 0 }
-        return Int(Date().timeIntervalSince(startTime) * 1000)
+        let stabilityDuration = Int(Date().timeIntervalSince(startTime) * 1000)
+        
+        // Cap stability time at reasonable maximum to prevent overflow
+        return min(stabilityDuration, 30000) // Max 30 seconds
     }
     
     // MARK: - Performance Monitoring
@@ -398,6 +502,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             faceRect: nil,
             faceStableMs: 0,
             faceSizePercentage: nil,
+            allFaceRects: [],
+            faceCount: 0,
+            groupHeadroomPercentage: nil,
+            primaryFaceIndex: nil,
             headroomPercentage: nil,
             thirdsOffsetPercentage: nil,
             timestamp: startTime,
@@ -410,9 +518,15 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
 
 // MARK: - Supporting Types
 private struct FaceAnalysis {
-    let rect: CGRect?
+    let rect: CGRect?                    // primary face rect (legacy)
     let stableMs: Int
     let sizePercentage: Float?
-    let headroomPercentage: Float?
+    let headroomPercentage: Float?       // primary face headroom (legacy)
     let thirdsOffsetPercentage: Float?
+    
+    // Multi-face support
+    let allFaceRects: [CGRect]           // all detected faces
+    let faceCount: Int                   // total face count
+    let groupHeadroomPercentage: Float?  // topmost face headroom
+    let primaryFaceIndex: Int?           // index of primary face in allFaceRects
 }

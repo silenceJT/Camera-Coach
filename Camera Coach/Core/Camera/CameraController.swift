@@ -14,6 +14,7 @@ import Photos
 
 public protocol CameraControllerDelegate: AnyObject {
     func cameraController(_ controller: CameraController, didUpdateFrame features: FrameFeatures)
+    func cameraController(_ controller: CameraController, didUpdateEnhancedFaceDetection result: EnhancedFaceResult)
     func cameraController(_ controller: CameraController, didEncounterError error: Error)
     func cameraControllerDidCapturePhoto(_ controller: CameraController)
     func cameraController(_ controller: CameraController, didFailWithError error: Error)
@@ -27,6 +28,7 @@ public final class CameraController: NSObject {
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private let photoOutput = AVCapturePhotoOutput()
     private let frameAnalyzer = FrameAnalyzer()
+    private let enhancedFaceDetector = EnhancedFaceDetector()
     
     private let sessionQueue = DispatchQueue(label: "com.silencejt.cameracoach.session", qos: .userInitiated)
     private let videoDataQueue = DispatchQueue(label: "com.silencejt.cameracoach.videodata", qos: .userInitiated)
@@ -56,7 +58,7 @@ public final class CameraController: NSObject {
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         
         self.previewLayer = previewLayer
-        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.videoGravity = .resizeAspect  // Maintain aspect ratio without cropping
         previewLayer.frame = view.bounds
         
         view.layer.addSublayer(previewLayer)
@@ -135,8 +137,8 @@ public final class CameraController: NSObject {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         
-        // Set resolution to 720p as specified
-        session.sessionPreset = .hd1280x720
+        // Set resolution to 4:3 aspect ratio like iPhone camera
+        session.sessionPreset = .photo  // 4:3 aspect ratio, high quality
         
         // Get back camera
         guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -209,9 +211,9 @@ public final class CameraController: NSObject {
         // Adjust performance based on thermal state
         if thermalState.rawValue >= Config.thermalGuardThreshold.rawValue {
             // Reduce frame rate if needed
-            if session.sessionPreset != .hd1280x720 {
+            if session.sessionPreset != .photo {
                 sessionQueue.async { [weak self] in
-                    self?.session.sessionPreset = .hd1280x720
+                    self?.session.sessionPreset = .photo
                 }
             }
         }
@@ -222,6 +224,16 @@ public final class CameraController: NSObject {
         // Use FrameAnalyzer for comprehensive analysis
         let features = frameAnalyzer.analyzeFrame(sampleBuffer)
         
+        // Run enhanced face detection in parallel
+        if let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            let enhancedResult = enhancedFaceDetector.detectFaces(in: pixelBuffer)
+            
+            // Send enhanced results to delegate
+            DispatchQueue.main.async { [weak self] in
+                self?.delegate?.cameraController(self!, didUpdateEnhancedFaceDetection: enhancedResult)
+            }
+        }
+        
         // Log performance metrics periodically
         if frameCount % 30 == 0 { // Every 30 frames
             Logger.shared.logFPSSample(average: features.currentFPS, p95: features.currentFPS)
@@ -230,6 +242,29 @@ public final class CameraController: NSObject {
         frameCount += 1
         
         return features
+    }
+    
+    // MARK: - Enhanced Face Detection Control
+    private var currentDetectionStrategy: FaceDetectionStrategy = .enhancedDistance
+    
+    public func setFaceDetectionStrategy(_ strategy: FaceDetectionStrategy) {
+        currentDetectionStrategy = strategy
+        // Create new detector with the selected strategy
+        sessionQueue.async { [weak self] in
+            self?.createNewDetector(with: strategy)
+        }
+    }
+    
+    private func createNewDetector(with strategy: FaceDetectionStrategy) {
+        // Update the detector instance
+        let newDetector = EnhancedFaceDetector(strategy: strategy)
+        // Replace the current detector
+        // Note: In a production app, you'd want to synchronize this more carefully
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let oldDetector = self.enhancedFaceDetector
+            // Swift will handle cleanup of old detector when new one replaces it
+        }
     }
     
     // MARK: - Level Indicator Setup

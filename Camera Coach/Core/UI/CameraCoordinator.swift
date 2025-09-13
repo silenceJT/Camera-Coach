@@ -22,6 +22,7 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     @Published var currentGuidance: GuidanceAdvice?
     @Published var isGuidanceActive = false
     @Published var currentFrameFeatures: FrameFeatures?
+    @Published var enhancedFaceResult: EnhancedFaceResult?
     
     // MARK: - Performance Monitoring
     private var lastGuidanceTime: Date = Date.distantPast
@@ -84,6 +85,11 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     
     public func onPhotoKept(_ kept: Bool) {
         guidanceEngine.onPhotoKept(kept)
+    }
+    
+    // MARK: - Enhanced Face Detection Control
+    public func setFaceDetectionStrategy(_ strategy: FaceDetectionStrategy) {
+        cameraController.setFaceDetectionStrategy(strategy)
     }
     
     // MARK: - Private Methods - Metrics Collection
@@ -190,6 +196,11 @@ extension CameraCoordinator: CameraControllerDelegate {
                 self?.processGuidance(advice)
             }
         }
+    }
+    
+    public func cameraController(_ controller: CameraController, didUpdateEnhancedFaceDetection result: EnhancedFaceResult) {
+        // Update enhanced face detection results
+        enhancedFaceResult = result
     }
     
     public func cameraController(_ controller: CameraController, didEncounterError error: Error) {

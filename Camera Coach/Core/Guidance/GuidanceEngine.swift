@@ -226,8 +226,46 @@ public final class GuidanceEngine: ObservableObject {
         return improvementDegrees >= 1.0 || achievedLevel
     }
     
+    // 🚀 WEEK 3: Headroom Adoption Tracking Implementation
     private func evaluateHeadroomAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
-        // TODO: Implement when headroom guidance is added
+        guard let beforeHeadroomStr = hint.beforeMetrics["headroom_percent"],
+              let afterHeadroomStr = afterMetrics["headroom_percent"],
+              let beforeHeadroom = Float(beforeHeadroomStr),
+              let afterHeadroom = Float(afterHeadroomStr) else {
+            // No valid headroom data available
+            return false
+        }
+        
+        let targetRange = Config.targetHeadroomPercentage
+        let targetCenter = (targetRange.upperBound + targetRange.lowerBound) / 2.0
+        
+        // Calculate distances from target before and after
+        let beforeDistance = abs(beforeHeadroom - targetCenter)
+        let afterDistance = abs(afterHeadroom - targetCenter)
+        
+        // Adoption criteria:
+        // 1. Movement towards target (distance reduced)
+        // 2. Significant improvement (≥1% headroom improvement)
+        // 3. Now within acceptable range or much closer
+        
+        let distanceImprovement = beforeDistance - afterDistance
+        let improvementThreshold: Float = 1.0 // 1% headroom improvement required
+        
+        // Check if headroom improved significantly
+        if distanceImprovement >= improvementThreshold {
+            return true
+        }
+        
+        // Check if now within target range (even with small improvement)
+        if targetRange.contains(afterHeadroom) && !targetRange.contains(beforeHeadroom) {
+            return true
+        }
+        
+        // Check for substantial movement in correct direction (≥50% improvement)
+        if distanceImprovement > 0 && (distanceImprovement / beforeDistance) >= 0.5 {
+            return true
+        }
+        
         return false
     }
     
@@ -339,42 +377,128 @@ public final class GuidanceEngine: ObservableObject {
         return nil
     }
     
+    // 🚀 MULTI-FACE ENHANCEMENT: Adaptive Headroom Guidance
     private func generateHeadroomGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
-        guard let headroom = features.headroomPercentage,
-              features.hasStableFace else { return nil }
+        // Only provide guidance if we have a stable, valid face
+        guard features.hasStableFace else { return nil }
         
-        // Check if headroom is outside target range
-        if !features.isHeadroomInTarget {
-            let targetCenter = (Config.targetHeadroomPercentage.upperBound + Config.targetHeadroomPercentage.lowerBound) / 2
-            let difference = targetCenter - headroom
-            
-            if abs(difference) > Config.headroomToleranceDegrees {
-                let action: GuidanceAction
-                let reason: String
-                
-                if difference > 0 {
-                    // Need more headroom - tilt up
-                    let degrees = Int(round(abs(difference)))
-                    action = .tiltUp(degrees: min(degrees, 10)) // Cap at 10 degrees
-                    reason = "Better headroom"
-                } else {
-                    // Too much headroom - tilt down
-                    let degrees = Int(round(abs(difference)))
-                    action = .tiltDown(degrees: min(degrees, 10))
-                    reason = "Better framing"
-                }
-                
-                return GuidanceAdvice(
-                    action: action,
-                    type: .headroom,
-                    reason: reason,
-                    confidence: 0.9,
-                    cooldownMs: Config.ruleCooldownMs
-                )
-            }
+        // 🚀 NEW: Multi-face adaptive strategy
+        let (headroom, strategy) = selectHeadroomStrategy(features)
+        
+        guard let selectedHeadroom = headroom else { return nil }
+        
+        // Skip guidance if primary face is too small (likely false positive)
+        if let faceSize = features.faceSizePercentage {
+            guard faceSize >= Config.minFaceSizePercentage else { return nil }
         }
         
-        return nil
+        // Check type-specific cooldown to prevent spamming headroom guidance
+        if let lastTime = typeCooldowns[.headroom], 
+           Date().timeIntervalSince(lastTime) < Double(Config.ruleCooldownMs) / 1000.0 {
+            return nil
+        }
+        
+        // Calculate how far we are from the target headroom range
+        let targetCenter = (Config.targetHeadroomPercentage.upperBound + Config.targetHeadroomPercentage.lowerBound) / 2.0
+        let difference = targetCenter - selectedHeadroom
+        
+        // Only provide guidance if significantly outside target range
+        guard abs(difference) > Config.headroomToleranceDegrees else { return nil }
+        
+        // Determine action and confidence based on how far off we are
+        let action: GuidanceAction
+        let reason: String
+        let confidence: Float
+        
+        if difference > 0 {
+            // Need more headroom - face(s) too low, tilt up/move back
+            let adjustmentDegrees = Int(round(min(abs(difference), Float(Config.maxHeadroomAdjustmentDegrees))))
+            action = .tiltUp(degrees: adjustmentDegrees)
+            
+            // Adaptive reason based on strategy
+            switch strategy {
+            case .groupHeadroom:
+                reason = NSLocalizedString("guidance.reason.group_headroom", comment: "Better headroom for group")
+            case .primarySubject:
+                reason = NSLocalizedString("guidance.reason.better_headroom", comment: "Better headroom")
+            }
+            
+            // Higher confidence for larger adjustments needed
+            var baseConfidence = 0.7 + Float(abs(difference)) / 10.0
+            // Apply group headroom confidence boost if using group strategy
+            if case .groupHeadroom = strategy {
+                baseConfidence += Config.groupHeadroomConfidenceBoost
+            }
+            confidence = min(0.95, baseConfidence)
+        } else {
+            // Too much headroom - face(s) too high, tilt down/move closer
+            let adjustmentDegrees = Int(round(min(abs(difference), Float(Config.maxHeadroomAdjustmentDegrees))))
+            action = .tiltDown(degrees: adjustmentDegrees)
+            
+            // Adaptive reason based on strategy  
+            switch strategy {
+            case .groupHeadroom:
+                reason = NSLocalizedString("guidance.reason.group_framing", comment: "Better framing for group")
+            case .primarySubject:
+                reason = NSLocalizedString("guidance.reason.better_framing", comment: "Better framing")
+            }
+            
+            // Slightly lower confidence for "too much headroom" cases
+            var baseConfidence = 0.65 + Float(abs(difference)) / 12.0
+            // Apply group headroom confidence boost if using group strategy
+            if case .groupHeadroom = strategy {
+                baseConfidence += Config.groupHeadroomConfidenceBoost
+            }
+            confidence = min(0.9, baseConfidence)
+        }
+        
+        // 🚀 DEBUG: Log multi-face headroom guidance
+        print("🎯 HEADROOM GUIDANCE (\(strategy)): \(reason) - \(action) (confidence: \(String(format: "%.2f", confidence)))")
+        
+        return GuidanceAdvice(
+            action: action,
+            type: .headroom,
+            reason: reason,
+            confidence: confidence,
+            cooldownMs: Config.ruleCooldownMs,
+            ruleVersion: "v4.0" // Multi-face enhanced headroom guidance
+        )
+    }
+    
+    // 🚀 NEW: Smart headroom strategy selection for multi-face scenarios
+    private func selectHeadroomStrategy(_ features: FrameFeatures) -> (headroom: Float?, strategy: HeadroomStrategy) {
+        // Check if group headroom guidance is enabled
+        guard Config.enableGroupHeadroomGuidance else {
+            return (features.headroomPercentage, .primarySubject)
+        }
+        
+        // If no group headroom data, fall back to legacy behavior
+        guard let groupHeadroom = features.groupHeadroomPercentage else {
+            return (features.headroomPercentage, .primarySubject)
+        }
+        
+        // Use configuration threshold to determine strategy
+        if features.faceCount >= Config.groupHeadroomThreshold {
+            // Multiple faces: use group headroom strategy
+            // This ensures adequate space above ALL visible faces
+            return (groupHeadroom, .groupHeadroom)
+        } else {
+            // Single face or below threshold: use primary subject headroom
+            return (features.headroomPercentage, .primarySubject)
+        }
+    }
+    
+    // Supporting enum for strategy tracking
+    private enum HeadroomStrategy: CustomStringConvertible {
+        case primarySubject
+        case groupHeadroom
+        
+        var description: String {
+            switch self {
+            case .primarySubject: return "Primary Subject"
+            case .groupHeadroom: return "Group Headroom"
+            }
+        }
     }
     
     private func generateHorizonGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {

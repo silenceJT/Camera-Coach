@@ -147,6 +147,98 @@ public final class Logger: ObservableObject {
         os_log(.info, log: osLog, "Micro-survey - Helpful: %{public}@, Satisfaction: %d", helpful ? "true" : "false", satisfaction)
     }
     
+    // 🚀 WEEK 3: Headroom-Specific Telemetry Events
+    public func logFaceDetected(
+        size: Float,
+        headroom: Float,
+        isStable: Bool,
+        isPrimarySubject: Bool,
+        selectionScore: Float? = nil
+    ) {
+        let event = LogEvent(
+            name: "face_detected",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "face_size_percent": String(format: "%.1f", size),
+                "headroom_percent": String(format: "%.1f", headroom),
+                "is_stable": isStable ? "true" : "false",
+                "is_primary": isPrimarySubject ? "true" : "false",
+                "selection_score": selectionScore != nil ? String(format: "%.2f", selectionScore!) : "null"
+            ]
+        )
+        
+        logEvent(event)
+        os_log(.info, log: osLog, "Face detected - Size: %.1f%%, Headroom: %.1f%%, Stable: %{public}@", 
+               size, headroom, isStable ? "true" : "false")
+    }
+    
+    public func logHeadroomGuidance(
+        currentHeadroom: Float,
+        targetRange: ClosedRange<Float>,
+        adjustmentDegrees: Int,
+        direction: String
+    ) {
+        let event = LogEvent(
+            name: "headroom_guidance",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "current_headroom": String(format: "%.1f", currentHeadroom),
+                "target_min": String(format: "%.1f", targetRange.lowerBound),
+                "target_max": String(format: "%.1f", targetRange.upperBound),
+                "adjustment_degrees": String(adjustmentDegrees),
+                "direction": direction
+            ]
+        )
+        
+        logEvent(event)
+        os_log(.info, log: osLog, "Headroom guidance - Current: %.1f%%, Target: %.1f-%.1f%%, Adjust: %{public}@ %d°", 
+               currentHeadroom, targetRange.lowerBound, targetRange.upperBound, direction, adjustmentDegrees)
+    }
+    
+    public func logHeadroomAdoption(
+        beforeHeadroom: Float,
+        afterHeadroom: Float,
+        improvement: Float,
+        adopted: Bool
+    ) {
+        let event = LogEvent(
+            name: "headroom_adoption",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "before_headroom": String(format: "%.1f", beforeHeadroom),
+                "after_headroom": String(format: "%.1f", afterHeadroom),
+                "improvement": String(format: "%.1f", improvement),
+                "adopted": adopted ? "true" : "false"
+            ]
+        )
+        
+        logEvent(event)
+        os_log(.info, log: osLog, "Headroom adoption - Before: %.1f%%, After: %.1f%%, Improvement: %.1f%%, Adopted: %{public}@", 
+               beforeHeadroom, afterHeadroom, improvement, adopted ? "true" : "false")
+    }
+    
+    public func logSceneClassification(
+        sceneType: String,
+        confidence: Float,
+        faceCount: Int,
+        primaryFaceSize: Float?
+    ) {
+        let event = LogEvent(
+            name: "scene_classification",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "scene_type": sceneType,
+                "confidence": String(format: "%.2f", confidence),
+                "face_count": String(faceCount),
+                "primary_face_size": primaryFaceSize != nil ? String(format: "%.1f", primaryFaceSize!) : "null"
+            ]
+        )
+        
+        logEvent(event)
+        os_log(.info, log: osLog, "Scene classification - Type: %{public}@, Confidence: %.2f, Faces: %d", 
+               sceneType, confidence, faceCount)
+    }
+    
     // MARK: - Performance Events
     public func logFPSSample(average: Float, p95: Float) {
         let event = LogEvent(

@@ -51,6 +51,10 @@ public final class CameraViewController: UIViewController {
     private let hudView = GuidanceHUDView()
     private let cameraView = UIView()
     
+    // 🚀 WEEK 3: Debug view to visualize face detection
+    private let debugView = FaceDetectionDebugView()
+    private var showDebugMode = true  // Set to true to see face detection in action
+    
     private var isSessionActive = false
     private var hasAttemptedCameraSetup = false
     private var hasShownError = false
@@ -87,8 +91,10 @@ public final class CameraViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .black
         
-        // Setup camera view
+        // Setup camera view with letterbox (center area only, like iOS Camera)
         cameraView.backgroundColor = .black
+        cameraView.layer.cornerRadius = 0
+        cameraView.clipsToBounds = true
         cameraView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(cameraView)
         
@@ -109,6 +115,13 @@ public final class CameraViewController: UIViewController {
         shutterButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(shutterButton)
         
+        // 🚀 WEEK 3: Add debug view to visualize face detection
+        if showDebugMode {
+            debugView.backgroundColor = .clear
+            debugView.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(debugView)
+        }
+        
         // Observe coordinator for guidance updates
         coordinator?.$currentGuidance
             .receive(on: DispatchQueue.main)
@@ -121,23 +134,54 @@ public final class CameraViewController: UIViewController {
             }
             .store(in: &cancellables)
         
-        // Setup constraints
-        NSLayoutConstraint.activate([
-            cameraView.topAnchor.constraint(equalTo: view.topAnchor),
+        // 🚀 WEEK 3: Observe enhanced face detection for debugging
+        coordinator?.$enhancedFaceResult
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] result in
+                guard let self = self, self.showDebugMode, let result = result else { return }
+                self.debugView.updateEnhancedFaceDetection(result: result)
+            }
+            .store(in: &cancellables)
+        
+        // 🚀 WEEK 3: Connect debug view strategy changes to coordinator
+        if showDebugMode {
+            debugView.onStrategyChanged = { [weak self] strategy in
+                self?.coordinator?.setFaceDetectionStrategy(strategy)
+            }
+        }
+        
+        // Setup constraints - letterbox camera view like iOS Camera app
+        var constraints = [
+            // Camera view centered with 4:3 aspect ratio
+            cameraView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            cameraView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -40), // Slightly higher to account for bottom controls
             cameraView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             cameraView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            cameraView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            cameraView.heightAnchor.constraint(equalTo: cameraView.widthAnchor, multiplier: 4.0/3.0), // 4:3 aspect ratio
             
-            hudView.topAnchor.constraint(equalTo: view.topAnchor),
-            hudView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            hudView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            hudView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            // HUD overlays only the camera area
+            hudView.topAnchor.constraint(equalTo: cameraView.topAnchor),
+            hudView.leadingAnchor.constraint(equalTo: cameraView.leadingAnchor),
+            hudView.trailingAnchor.constraint(equalTo: cameraView.trailingAnchor),
+            hudView.bottomAnchor.constraint(equalTo: cameraView.bottomAnchor),
             
             shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             shutterButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
             shutterButton.widthAnchor.constraint(equalToConstant: 70),
             shutterButton.heightAnchor.constraint(equalToConstant: 70)
-        ])
+        ]
+        
+        // 🚀 WEEK 3: Add debug view constraints if enabled (only over camera area)
+        if showDebugMode {
+            constraints.append(contentsOf: [
+                debugView.topAnchor.constraint(equalTo: cameraView.topAnchor),
+                debugView.leadingAnchor.constraint(equalTo: cameraView.leadingAnchor),
+                debugView.trailingAnchor.constraint(equalTo: cameraView.trailingAnchor),
+                debugView.bottomAnchor.constraint(equalTo: cameraView.bottomAnchor)
+            ])
+        }
+        
+        NSLayoutConstraint.activate(constraints)
         
         // Hide status bar for full-screen camera experience
         setNeedsStatusBarAppearanceUpdate()
@@ -156,6 +200,7 @@ public final class CameraViewController: UIViewController {
             
             // Start the camera session immediately after setup
             coordinator.startSession()
+            isSessionActive = true
         } catch {
             showCameraError(error)
         }
@@ -170,7 +215,7 @@ public final class CameraViewController: UIViewController {
     }
     
     private func stopCameraSession() {
-        guard !isSessionActive, let coordinator = coordinator else { return }
+        guard isSessionActive, let coordinator = coordinator else { return }
         
         coordinator.stopSession()
         isSessionActive = false

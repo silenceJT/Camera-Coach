@@ -83,9 +83,9 @@ public final class GuidanceHUDView: UIView {
             gridView.trailingAnchor.constraint(equalTo: trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
-            // Guidance label positioned at bottom center
+            // Guidance label positioned above camera button area
             guidanceLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            guidanceLabel.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            guidanceLabel.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -120),
             guidanceLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
             guidanceLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
             guidanceLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
