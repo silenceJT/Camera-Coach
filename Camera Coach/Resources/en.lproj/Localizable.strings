@@ -44,6 +44,26 @@
 "survey.submit" = "Submit";
 "survey.thank_you" = "Thank you!";
 
+// Privacy Settings
+"privacy.title" = "Privacy & Data";
+"privacy.face_detection.title" = "Face Detection";
+"privacy.face_detection.description" = "Camera Coach uses on-device face detection to provide headroom guidance. No face data is stored or transmitted.";
+"privacy.face_detection.toggle" = "Enable Face Detection";
+"privacy.cloud_features.title" = "Cloud Features";
+"privacy.cloud_features.description" = "Optional post-shot analysis uses cloud services. Photos are processed securely and deleted after analysis.";
+"privacy.analytics.title" = "Usage Analytics";
+"privacy.analytics.description" = "Help improve Camera Coach by sharing anonymous usage data. No personal information is collected.";
+"privacy.analytics.toggle" = "Share Usage Data";
+"privacy.data_controls.title" = "Data Controls";
+"privacy.delete_all.title" = "Delete All Data";
+"privacy.delete_all.description" = "Remove all cached data and reset privacy settings";
+"privacy.delete_all.button" = "Delete All Data";
+"privacy.delete_all.confirm.title" = "Delete All Data?";
+"privacy.delete_all.confirm.message" = "This will remove all cached data and reset your privacy settings. This action cannot be undone.";
+"privacy.delete_all.confirm.delete" = "Delete";
+"privacy.delete_all.confirm.cancel" = "Cancel";
+"privacy.data_handling.description" = "Camera Coach prioritizes your privacy. Face detection runs entirely on your device. Cloud features are optional and require explicit consent.";
+
 // Accessibility
 "accessibility.level" = "Level";
 "accessibility.stable" = "Stable";

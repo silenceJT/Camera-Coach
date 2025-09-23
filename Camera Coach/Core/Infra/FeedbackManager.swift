@@ -201,6 +201,14 @@ public final class FeedbackManager: ObservableObject {
         pendingMetrics.removeAll()
         pendingFeedbackCount = 0
     }
+
+    /// Clear all feedback data (for privacy deletion)
+    public func clearAllData() {
+        clearPendingFeedback()
+        UserDefaults.standard.removeObject(forKey: lastFeedbackKey)
+        UserDefaults.standard.removeObject(forKey: feedbackCountKey)
+        logger.logDataDeletion(type: "feedback")
+    }
     
     // MARK: - Analytics Support
     

@@ -270,23 +270,66 @@ public final class ReplayDataSource {
             let asset = AVURLAsset(url: videoURL)
             let duration = asset.duration.seconds
             let name = videoURL.deletingPathExtension().lastPathComponent
-            
+
             let clip = SampleClip(
                 name: name,
                 url: videoURL,
-                description: "Auto-detected clip",
-                expectedScenario: .mixed,
+                description: generateDescription(for: name),
+                expectedScenario: detectScenario(from: name),
                 duration: duration,
                 frameCount: try? getFrameCount(for: asset),
-                tags: ["auto_detected"]
+                tags: generateTags(for: name)
             )
-            
+
             availableClips.append(clip)
         }
         
         saveClipMetadata()
     }
-    
+
+    // MARK: - Clip Detection Helpers
+
+    private func detectScenario(from filename: String) -> ScenarioType {
+        let name = filename.lowercased()
+
+        // Exact matches for your clip names
+        if name.contains("portrait") && name.contains("good") { return .portrait }
+        if name.contains("tilted") && name.contains("horizon") { return .tilted }
+        if name.contains("low") && name.contains("headroom") { return .lowHeadroom }
+        if name.contains("excessive") && name.contains("headroom") { return .excessiveHeadroom }
+        if name.contains("no_face") { return .noFace }
+        if name.contains("multiple") && name.contains("faces") { return .multipleFaces }
+        if name.contains("moving") && name.contains("subject") { return .movingSubject }
+        if name.contains("outdoor") && name.contains("scene") { return .landscape }
+        if name.contains("thirds") && name.contains("composition") { return .mixed }  // thirds composition test
+        if name.contains("mixed") && name.contains("scenario") { return .mixed }
+
+        return .mixed
+    }
+
+    private func generateDescription(for filename: String) -> String {
+        let scenario = detectScenario(from: filename)
+        return scenario.description
+    }
+
+    private func generateTags(for filename: String) -> [String] {
+        let name = filename.lowercased()
+        var tags = ["auto_detected"]
+
+        if name.contains("portrait") { tags.append("single_face") }
+        if name.contains("good") { tags.append("reference_quality") }
+        if name.contains("headroom") { tags.append("headroom_test") }
+        if name.contains("horizon") { tags.append("horizon_test") }
+        if name.contains("multiple") { tags.append("multi_face") }
+        if name.contains("moving") { tags.append("stability_test") }
+        if name.contains("outdoor") { tags.append("landscape") }
+        if name.contains("thirds") { tags.append("composition_test") }
+        if name.contains("tilted") { tags.append("rotation_needed") }
+        if name.contains("no_face") { tags.append("no_face") }
+
+        return tags
+    }
+
     private func saveClipMetadata() {
         let metadata = availableClips.map { clip in
             ClipMetadata(

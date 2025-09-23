@@ -289,7 +289,7 @@ public final class Logger: ObservableObject {
         }
     }
     
-    private func thermalStateString(_ state: ProcessInfo.ThermalState) -> String {
+    public func thermalStateString(_ state: ProcessInfo.ThermalState) -> String {
         switch state {
         case .nominal: return "nominal"
         case .fair: return "fair"
@@ -322,7 +322,91 @@ public final class Logger: ObservableObject {
             return nil
         }
     }
-    
+
+    /// Clear all logged events (for privacy deletion)
+    public func clearLogs() {
+        sessionEvents.removeAll()
+        os_log(.info, log: osLog, "All logs cleared for privacy deletion")
+    }
+
+    // MARK: - Error Recovery Logging
+    public func logVisionFrameworkError(error: Error, errorCount: Int, thermalState: ProcessInfo.ThermalState) {
+        let event = LogEvent(
+            name: "vision_framework_error",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "error_description": error.localizedDescription,
+                "error_count": String(errorCount),
+                "thermal_state": thermalStateString(thermalState),
+                "error_type": String(describing: type(of: error))
+            ]
+        )
+
+        logEvent(event)
+        os_log(.error, log: osLog, "Vision framework error #%d: %{public}@ (Thermal: %{public}@)",
+               errorCount, error.localizedDescription, thermalStateString(thermalState))
+    }
+
+    public func logVisionFrameworkFallback(errorCount: Int) {
+        let event = LogEvent(
+            name: "vision_framework_fallback",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "error_count": String(errorCount),
+                "action": "temporary_disable"
+            ]
+        )
+
+        logEvent(event)
+        os_log(.fault, log: osLog, "Vision framework fallback triggered after %d errors", errorCount)
+    }
+
+    public func logVisionFrameworkRecovery() {
+        let event = LogEvent(
+            name: "vision_framework_recovery",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "action": "re_enable",
+                "status": "recovered"
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Vision framework recovered and re-enabled")
+    }
+
+    public func logThermalThrottling(action: String) {
+        let event = LogEvent(
+            name: "thermal_throttling",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "action": action,
+                "thermal_state": thermalStateString(ProcessInfo.processInfo.thermalState)
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Thermal throttling: %{public}@ (State: %{public}@)",
+               action, thermalStateString(ProcessInfo.processInfo.thermalState))
+    }
+
+    public func logMemoryFaceLimiting(detectedFaces: Int, limitedTo: Int, memoryPressure: String) {
+        let event = LogEvent(
+            name: "memory_face_limiting",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "detected_faces": String(detectedFaces),
+                "limited_to": String(limitedTo),
+                "memory_pressure": memoryPressure,
+                "faces_dropped": String(detectedFaces - limitedTo)
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Memory face limiting: %d faces → %d faces (Pressure: %{public}@)",
+               detectedFaces, limitedTo, memoryPressure)
+    }
+
     private func generateCSV() -> Data {
         var csv = "timestamp,event_name,parameters\n"
         

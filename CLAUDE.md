@@ -13,7 +13,7 @@ xcodebuild -scheme "Camera Coach" -configuration Debug build
 xcodebuild -scheme "Camera Coach" -configuration Release -destination "generic/platform=iOS" build
 
 # Run tests
-xcodebuild -scheme "Camera Coach" test -destination "platform=iOS Simulator,name=iPhone 15 Pro"
+xcodebuild -scheme "Camera Coach" test -destination "platform=iOS Simulator,name=iPhone 17 Pro"
 
 # Clean build folder
 xcodebuild -scheme "Camera Coach" clean
@@ -31,7 +31,7 @@ xcodebuild archive \
 ```
 
 **Development Workflow:**
-- Open `Camera Coach.xcodeproj` in Xcode 15.0+
+- Open `Camera Coach.xcodeproj` in Xcode 17.0+
 - Build and run on physical device (camera required)
 - Use Swift Package Manager for dependencies (no CocoaPods/Carthage)
 - Weekly TestFlight releases following MVPWeekly cadence
@@ -145,7 +145,7 @@ fps_sample, thermal_sample, consent_changed
 ## Code Style & Standards
 
 **Language & Frameworks:**
-- Swift 5.9+, iOS 17+ minimum
+- Swift 6.0+, iOS 26+ minimum
 - AVFoundation, Vision, CoreMotion, SwiftUI + UIKit hybrid
 - Structured Concurrency + GCD for threading
 - No force unwrapping (`!`) in production code
@@ -190,29 +190,48 @@ Camera Coach/
 
 ## Current Development Phase
 
-**Status:** Week 2 ACTUALLY Complete - Ready for Week 3
-- ✅ **Week 1:** Core camera architecture, telemetry, and HUD foundation established  
-- ✅ **Week 2:** All requirements completed - TRUE completion achieved
-- 🔄 **Week 3 (Next):** Face detection + headroom guidance, replay harness implementation
+**Status:** Week 5 Equivalent - Advanced Implementation Phase
+- ✅ **Week 1:** Core camera architecture, telemetry, and HUD foundation established
+- ✅ **Week 2:** Horizon guidance + strategic feedback system + EN/CN localization complete
+- ✅ **Week 3:** Face detection + headroom guidance + multi-face support (**MISSING: 10 test clips**)
+- ✅ **Week 4:** Privacy settings + consent management + data controls complete
+- ✅ **Week 5:** Thermal management + memory optimization + performance monitoring complete
 
-**Week 2 Final Completion Status (100%):**
-- ✅ **Strategic Feedback System**: Post-shot feedback with iOS-compliant UX (replaces immediate survey disaster)
-- ✅ **EN/CN Localization**: Complete Localizable.strings support for all user-facing text
-- ✅ **Horizon Threshold**: Fixed to 3° per specification (was incorrectly 5°)  
-- ✅ **Guidance Rate**: 300ms stability + 600ms cooldown per FSM specification
-- ✅ **TestFlight Ready**: Build configuration and deployment instructions complete
+**CRITICAL GAP - Week 3 Incomplete:**
+❌ **Replay Harness Test Clips Missing**: Framework exists but 10 standard test clips never created
+❌ **No Deterministic Testing**: Cannot validate guidance engine consistency without clips
+❌ **No Regression Detection**: Performance and behavior changes undetected
 
-**Critical UX Transformation:**
-- **UX Disaster Fix**: Eliminated immediate post-shutter survey interruption
-- **Strategic Timing**: Feedback collection at natural breakpoints (session end, settings, app background)
-- **Silent Metrics**: Rich context collection without workflow interruption
-- **iOS Compliance**: Respects platform UX patterns and user expectations
+**Advanced Week 4-5 Achievements (Ahead of Schedule):**
+✅ **Privacy-First Architecture**: Comprehensive PrivacyManager with granular consent controls
+✅ **Thermal Management**: Dynamic performance degradation for iPhone 17 Pro sustained use
+✅ **Memory Optimization**: Pressure-aware multi-face detection (10→5→3→1 faces)
+✅ **Error Recovery**: Vision framework fallback with progressive degradation
+✅ **iPhone 17 Pro + iOS 26**: Optimized for latest hardware with thermal endurance testing
 
-**Upcoming Week 3 Priorities:**
-- Integrate Vision framework face detection (`VNDetectFaceRectangles`)
-- Implement headroom calculation targeting 7-12% frame height
-- Build offline replay harness for deterministic testing with 10 standard clips
-- Establish priority arbitration: headroom > horizon guidance
+**Week 3 Technical Achievements:**
+✅ **Multi-Face Detection**: Vision framework integration with primary subject selection
+✅ **Headroom Calculation**: Targeting 7-12% frame height with group headroom support
+✅ **Priority Arbitration**: headroom > horizon > thirds with deterministic FSM
+✅ **Letterboxed Camera**: 4:3 aspect ratio with proper face detection scaling
+
+**IMMEDIATE PRIORITY - Complete Week 3:**
+❗ **Create 10 Standard Test Clips**: Record video samples for deterministic testing
+❗ **Validate Replay Harness**: Test framework with actual clips to ensure consistency
+❗ **Enable Regression Detection**: Establish baseline for guidance engine behavior
+
+**Next Development Phase - Week 6:**
+- External testing preparation (≥60% one-shot success, ≥3.8/5 satisfaction, <1% crash rate)
+- Performance validation with replay harness
+- TestFlight release with comprehensive analytics
+
+**Advanced Features Already Implemented (Ahead of Schedule):**
+- Thermal management system (Week 5 complete)
+- Memory-aware multi-face detection (Week 5+ optimization)
+
+**Week 4 Features Completed On Schedule:**
+- Rule-of-thirds guidance with face stability gating (≥300ms)
+- Privacy settings with consent management and data controls
 
 ## Development Rules
 
@@ -223,11 +242,11 @@ Camera Coach/
 4. Real-time budget: p95 ≤80ms, ≥24fps sustained
 5. Privacy-first defaults with explicit consent for cloud features
 
-**12-Week MVP Timeline:**
-- **Weeks 1-2:** ✅ Foundation + horizon guidance
-- **Weeks 3-4:** Face detection + headroom + privacy settings
-- **Weeks 5-6:** Performance optimization + first external testing (60% one-shot success)
-- **Weeks 7-8:** Advanced guidance (orientation, thirds) + threshold tuning
+**12-Week MVP Timeline (Updated Progress):**
+- **Weeks 1-2:** ✅ Foundation + horizon guidance + strategic feedback
+- **Weeks 3-4:** ✅ Face detection + headroom + **rule-of-thirds** + privacy settings (**EXCEPT: test clips**)
+- **Weeks 5-6:** ✅ Performance optimization + thermal management (**READY for external testing**)
+- **Weeks 7-8:** Advanced guidance (orientation, lead space) + threshold tuning
 - **Weeks 9-10:** Post-shot cloud (opt-in) + second external test (70% one-shot success)
 - **Weeks 11-12:** Submission preparation + launch
 

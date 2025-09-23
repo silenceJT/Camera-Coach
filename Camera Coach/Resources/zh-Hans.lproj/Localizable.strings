@@ -44,6 +44,26 @@
 "survey.submit" = "提交";
 "survey.thank_you" = "谢谢！";
 
+// Privacy Settings
+"privacy.title" = "隐私与数据";
+"privacy.face_detection.title" = "人脸检测";
+"privacy.face_detection.description" = "Camera Coach使用设备端人脸检测来提供头部空间指导。不存储或传输人脸数据。";
+"privacy.face_detection.toggle" = "启用人脸检测";
+"privacy.cloud_features.title" = "云功能";
+"privacy.cloud_features.description" = "可选的拍照后分析使用云服务。照片经过安全处理并在分析后删除。";
+"privacy.analytics.title" = "使用分析";
+"privacy.analytics.description" = "通过分享匿名使用数据帮助改进Camera Coach。不收集个人信息。";
+"privacy.analytics.toggle" = "分享使用数据";
+"privacy.data_controls.title" = "数据控制";
+"privacy.delete_all.title" = "删除所有数据";
+"privacy.delete_all.description" = "移除所有缓存数据并重置隐私设置";
+"privacy.delete_all.button" = "删除所有数据";
+"privacy.delete_all.confirm.title" = "删除所有数据？";
+"privacy.delete_all.confirm.message" = "这将移除所有缓存数据并重置您的隐私设置。此操作无法撤销。";
+"privacy.delete_all.confirm.delete" = "删除";
+"privacy.delete_all.confirm.cancel" = "取消";
+"privacy.data_handling.description" = "Camera Coach优先保护您的隐私。人脸检测完全在您的设备上运行。云功能是可选的，需要明确同意。";
+
 // Accessibility
 "accessibility.level" = "水平";
 "accessibility.stable" = "稳定";

@@ -78,37 +78,80 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var logger = Logger.shared
     @StateObject private var feedbackManager = FeedbackManager.shared
+    @StateObject private var privacyManager = PrivacyManager.shared
     @State private var postShotCloudEnabled = Config.defaultPostShotCloudEnabled
     @State private var maxDailyUploads = Config.maxDailyCloudUploads
     @State private var showFeedbackModal = false
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         NavigationView {
             Form {
-                Section(NSLocalizedString("settings.privacy_data", comment: "Privacy & Data section header")) {
-                    Toggle(NSLocalizedString("settings.postshot_cloud", comment: "Post-shot cloud toggle"), isOn: $postShotCloudEnabled)
-                        .onChange(of: postShotCloudEnabled) { newValue in
-                            logger.logConsentChanged(postShotCloud: newValue)
-                        }
-                    
-                    if postShotCloudEnabled {
+                // Privacy & Face Detection Section
+                Section(header: Text(NSLocalizedString("privacy.face_detection.title", comment: "Face Detection section header"))) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(NSLocalizedString("privacy.face_detection.toggle", comment: "Enable face detection toggle"), isOn: $privacyManager.faceDetectionConsent)
+
+                        Text(NSLocalizedString("privacy.face_detection.description", comment: "Face detection description"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Cloud Features Section
+                Section(header: Text(NSLocalizedString("privacy.cloud_features.title", comment: "Cloud Features section header"))) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(NSLocalizedString("settings.postshot_cloud", comment: "Post-shot cloud toggle"), isOn: $privacyManager.postShotCloudConsent)
+
+                        Text(NSLocalizedString("privacy.cloud_features.description", comment: "Cloud features description"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if privacyManager.postShotCloudConsent {
                         HStack {
                             Text(NSLocalizedString("settings.daily_upload_limit", comment: "Daily upload limit label"))
                             Spacer()
                             Text("\(maxDailyUploads)")
                         }
-                        
+
                         Stepper("", value: $maxDailyUploads, in: 1...20)
-                    }
-                    
-                    HStack {
-                        Text(NSLocalizedString("settings.wifi_only", comment: "Wi-Fi only label"))
-                        Spacer()
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.green)
+
+                        HStack {
+                            Text(NSLocalizedString("settings.wifi_only", comment: "Wi-Fi only label"))
+                            Spacer()
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.green)
+                        }
                     }
                 }
-                
+
+                // Analytics Section
+                Section(header: Text(NSLocalizedString("privacy.analytics.title", comment: "Analytics section header"))) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle(NSLocalizedString("privacy.analytics.toggle", comment: "Analytics toggle"), isOn: $privacyManager.analyticsConsent)
+
+                        Text(NSLocalizedString("privacy.analytics.description", comment: "Analytics description"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // Data Controls Section
+                Section(header: Text(NSLocalizedString("privacy.data_controls.title", comment: "Data Controls section header"))) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("privacy.data_handling.description", comment: "Data handling description"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button(NSLocalizedString("privacy.delete_all.button", comment: "Delete all data button")) {
+                        showDeleteConfirmation = true
+                    }
+                    .foregroundColor(.red)
+                }
+
+                // Performance Section
                 Section(NSLocalizedString("settings.performance", comment: "Performance section header")) {
                     HStack {
                         Text(NSLocalizedString("settings.target_fps", comment: "Target FPS label"))
@@ -116,7 +159,7 @@ struct SettingsView: View {
                         Text("\(Config.targetFPS)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Text(NSLocalizedString("settings.max_latency", comment: "Max latency label"))
                         Spacer()
@@ -124,12 +167,13 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
+                // Export & Debug Section
                 Section(NSLocalizedString("settings.export_debug", comment: "Export & Debug section header")) {
                     Button(NSLocalizedString("settings.export_logs", comment: "Export logs button")) {
                         exportLogs()
                     }
-                    
+
                     // Strategic feedback collection section
                     if feedbackManager.pendingFeedbackCount > 0 {
                         Button("Help Improve Camera Coach (\(feedbackManager.pendingFeedbackCount) photos)") {
@@ -137,7 +181,7 @@ struct SettingsView: View {
                         }
                         .foregroundColor(.blue)
                     }
-                    
+
                     Button(NSLocalizedString("settings.reset_settings", comment: "Reset settings button")) {
                         resetSettings()
                     }
@@ -170,6 +214,14 @@ struct SettingsView: View {
                     feedbackManager.completeFeedback(helpful: helpful, satisfaction: satisfaction)
                 }
             )
+        }
+        .alert(NSLocalizedString("privacy.delete_all.confirm.title", comment: "Delete confirmation title"), isPresented: $showDeleteConfirmation) {
+            Button(NSLocalizedString("privacy.delete_all.confirm.cancel", comment: "Cancel deletion"), role: .cancel) { }
+            Button(NSLocalizedString("privacy.delete_all.confirm.delete", comment: "Confirm deletion"), role: .destructive) {
+                privacyManager.deleteAllData()
+            }
+        } message: {
+            Text(NSLocalizedString("privacy.delete_all.confirm.message", comment: "Delete confirmation message"))
         }
     }
     

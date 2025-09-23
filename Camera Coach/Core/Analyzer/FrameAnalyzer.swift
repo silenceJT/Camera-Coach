@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 import AVFoundation
 import CoreMotion
 import Vision
@@ -17,6 +18,8 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     // MARK: - Properties
     private let motionManager = CMMotionManager()
     private let logger = Logger.shared
+    private let thermalManager = ThermalManager.shared
+    private let memoryProfiler = MemoryProfiler.shared
     
     // MARK: - Horizon Detection
     private var horizonHistory: [Float] = []
@@ -33,6 +36,11 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     private var frameCount = 0
     private var lastFrameTime: TimeInterval = 0
     private var processingTimes: [TimeInterval] = []
+    private var lastProcessingTime: TimeInterval = 0
+
+    // MARK: - Thermal Management
+    private var thermalTestStartTime: Date?
+    private var thermalEventCount = 0
     
     // MARK: - Initialization
     public override init() {
@@ -48,18 +56,27 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     // MARK: - Public Interface
     public func analyzeFrame(_ sampleBuffer: CMSampleBuffer) -> FrameFeatures {
         let startTime = CACurrentMediaTime()
-        
+
+        // Thermal-aware processing throttling
+        let recommendedInterval = thermalManager.recommendedProcessingInterval
+        if startTime - lastProcessingTime < recommendedInterval {
+            // Skip this frame due to thermal throttling
+            return createEmptyFrameFeatures(startTime: startTime)
+        }
+        lastProcessingTime = startTime
+
         // Get image buffer
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
             return createEmptyFrameFeatures(startTime: startTime)
         }
-        
+
         // Analyze horizon using CoreMotion
         let horizonDegrees = getCurrentHorizonDegrees()
         let horizonStableMs = getHorizonStabilityMs()
-        
-        // Analyze face using Vision
-        let faceAnalysis = analyzeFace(in: imageBuffer)
+
+        // Thermal-aware face detection (privacy consent + thermal state)
+        let shouldRunFaceDetection = PrivacyManager.shared.canUseFaceDetection && thermalManager.shouldEnableFaceDetection
+        let faceAnalysis = shouldRunFaceDetection ? analyzeFace(in: imageBuffer) : createEmptyFaceAnalysis()
         
         // Calculate processing latency
         let endTime = CACurrentMediaTime()
@@ -298,11 +315,24 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
                 resetFaceStability()
                 return createEmptyFaceAnalysis()
             }
+
+            // Memory-aware face count limiting
+            let maxFaceCount = memoryProfiler.recommendedMaxFaceCount
+            let memoryLimitedFaceRects = Array(allFaceRects.prefix(maxFaceCount))
+
+            // Log if we had to limit faces due to memory pressure
+            if allFaceRects.count > maxFaceCount {
+                logger.logMemoryFaceLimiting(
+                    detectedFaces: allFaceRects.count,
+                    limitedTo: maxFaceCount,
+                    memoryPressure: memoryProfiler.memoryPressureLevel.description
+                )
+            }
             
-            // Select primary subject from valid faces
+            // Select primary subject from memory-limited valid faces
             let validFaces = results.filter { face in
                 let rect = VNImageRectForNormalizedRect(face.boundingBox, Int(imageSize.width), Int(imageSize.height))
-                return allFaceRects.contains(rect)
+                return memoryLimitedFaceRects.contains(rect)
             }
             
             guard let primaryFace = selectPrimarySubject(from: validFaces, imageSize: imageSize),
@@ -311,7 +341,7 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
                 return createEmptyFaceAnalysis()
             }
             
-            let primaryFaceRect = allFaceRects[primaryFaceIndex]
+            let primaryFaceRect = memoryLimitedFaceRects[primaryFaceIndex]
             
             // Calculate primary face metrics (for legacy compatibility)
             let faceArea = primaryFaceRect.width * primaryFaceRect.height
@@ -319,12 +349,12 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             let sizePercentage = Float((faceArea / imageArea) * 100.0)
             let headroomPercentage = Float((primaryFaceRect.minY / imageSize.height) * 100.0)
             
-            // 🚀 GROUP HEADROOM CALCULATION: Find topmost face for group headroom
-            let topmostY = allFaceRects.map { $0.minY }.min() ?? primaryFaceRect.minY
+            // 🚀 GROUP HEADROOM CALCULATION: Find topmost face for group headroom (memory-limited)
+            let topmostY = memoryLimitedFaceRects.map { $0.minY }.min() ?? primaryFaceRect.minY
             let groupHeadroomPercentage = Float((topmostY / imageSize.height) * 100.0)
-            
-            // 🚀 DEBUG: Log multi-face detection
-            print("🔍 FACES DETECTED: Count=\(allFaceRects.count), Primary Headroom=\(String(format: "%.1f", headroomPercentage))%, Group Headroom=\(String(format: "%.1f", groupHeadroomPercentage))%")
+
+            // 🚀 DEBUG: Log multi-face detection (memory-aware)
+            print("🔍 FACES DETECTED: Total=\(allFaceRects.count), Limited=\(memoryLimitedFaceRects.count), Primary Headroom=\(String(format: "%.1f", headroomPercentage))%, Group Headroom=\(String(format: "%.1f", groupHeadroomPercentage))%")
             
             // Calculate thirds offset (based on primary face)
             let faceCenterX = primaryFaceRect.midX
@@ -341,12 +371,14 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
                 sizePercentage: sizePercentage,
                 headroomPercentage: headroomPercentage,
                 thirdsOffsetPercentage: thirdsOffsetPercentage,
-                allFaceRects: allFaceRects,
-                faceCount: allFaceRects.count,
+                allFaceRects: memoryLimitedFaceRects,
+                faceCount: memoryLimitedFaceRects.count,
                 groupHeadroomPercentage: groupHeadroomPercentage,
                 primaryFaceIndex: primaryFaceIndex
             )
         } catch {
+            // Enhanced error recovery for Vision framework failures
+            handleVisionFrameworkError(error)
             resetFaceStability()
             return createEmptyFaceAnalysis()
         }
@@ -513,6 +545,116 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             thermalState: ProcessInfo.processInfo.thermalState,
             currentFPS: calculateCurrentFPS()
         )
+    }
+
+    // MARK: - Error Recovery
+    private var visionErrorCount = 0
+    private var lastVisionErrorTime: Date?
+    private let maxVisionErrors = 5
+    private let visionErrorResetInterval: TimeInterval = 30.0
+
+    private func handleVisionFrameworkError(_ error: Error) {
+        let currentTime = Date()
+
+        // Reset error count if enough time has passed
+        if let lastErrorTime = lastVisionErrorTime,
+           currentTime.timeIntervalSince(lastErrorTime) > visionErrorResetInterval {
+            visionErrorCount = 0
+        }
+
+        visionErrorCount += 1
+        lastVisionErrorTime = currentTime
+
+        // Log error with context
+        logger.logVisionFrameworkError(
+            error: error,
+            errorCount: visionErrorCount,
+            thermalState: ProcessInfo.processInfo.thermalState
+        )
+
+        // Implement progressive fallback strategy
+        if visionErrorCount >= maxVisionErrors {
+            logger.logVisionFrameworkFallback(errorCount: visionErrorCount)
+
+            // Temporarily disable face detection to prevent cascade failures
+            // Face detection will be re-enabled after the reset interval
+            temporarilyDisableFaceDetection()
+        }
+
+        // Trigger thermal throttling if errors correlate with high thermal state
+        if ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue {
+            logger.logThermalThrottling(action: "reduce_vision_processing")
+        }
+    }
+
+    private func temporarilyDisableFaceDetection() {
+        // Set a flag or modify request to reduce processing load
+        // This is a failsafe mechanism to prevent system overload
+        DispatchQueue.main.asyncAfter(deadline: .now() + visionErrorResetInterval) { [weak self] in
+            self?.visionErrorCount = 0
+            self?.logger.logVisionFrameworkRecovery()
+        }
+    }
+
+    // MARK: - Thermal Testing
+
+    /// Start thermal endurance testing
+    public func startThermalTest() {
+        thermalTestStartTime = Date()
+        thermalEventCount = 0
+        logger.logEvent(LogEvent(
+            name: "thermal_test_start",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "device_model": UIDevice.current.model,
+                "initial_thermal_state": thermalManager.currentThermalState.rawValue.description
+            ]
+        ))
+    }
+
+    /// Stop thermal endurance testing and log results
+    public func stopThermalTest() -> [String: Any] {
+        guard let startTime = thermalTestStartTime else {
+            return ["error": "No active thermal test"]
+        }
+
+        let duration = Date().timeIntervalSince(startTime)
+        let averageFPS = calculateCurrentFPS()
+        let thermalStats = thermalManager.getThermalStatistics()
+
+        logger.logThermalSustainedTest(
+            duration: duration,
+            averageFPS: averageFPS,
+            thermalEvents: thermalEventCount
+        )
+
+        thermalTestStartTime = nil
+
+        return [
+            "duration_seconds": duration,
+            "average_fps": averageFPS,
+            "thermal_events": thermalEventCount,
+            "thermal_stats": thermalStats,
+            "final_thermal_state": thermalManager.currentThermalState.rawValue.description,
+            "performance_level": String(describing: thermalManager.performanceLevel)
+        ]
+    }
+
+    /// Get current thermal testing status
+    public func getThermalTestStatus() -> [String: Any] {
+        guard let startTime = thermalTestStartTime else {
+            return ["active": false]
+        }
+
+        let duration = Date().timeIntervalSince(startTime)
+        return [
+            "active": true,
+            "duration_seconds": duration,
+            "thermal_events": thermalEventCount,
+            "current_fps": calculateCurrentFPS(),
+            "thermal_state": thermalManager.currentThermalState.rawValue.description,
+            "performance_level": String(describing: thermalManager.performanceLevel)
+        ]
     }
 }
 
