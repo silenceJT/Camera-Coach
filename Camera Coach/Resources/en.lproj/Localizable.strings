@@ -21,18 +21,24 @@
 "camera.error.preview_failed" = "Failed to create preview layer";
 
 // Guidance Actions
-"guidance.rotate_left" = "Rotate left %d°";
-"guidance.rotate_right" = "Rotate right %d°";
-"guidance.tilt_up" = "Tilt up %d°";
-"guidance.tilt_down" = "Tilt down %d°";
-"guidance.move_left" = "Move left %d%%";
-"guidance.move_right" = "Move right %d%%";
+"guidance.move_up" = "Move up %@";
+"guidance.move_down" = "Move down %@";
+"guidance.move_left" = "Move left %@";
+"guidance.move_right" = "Move right %@";
+
+// Natural Language Amounts
+"guidance.amount.tiny" = "a tiny bit";
+"guidance.amount.little" = "a little";
+"guidance.amount.bit" = "a bit";
+"guidance.amount.lot" = "a lot";
+"guidance.amount.much" = "much more";
 
 // Guidance Reasons
 "guidance.reason.better_headroom" = "Better headroom";
 "guidance.reason.better_framing" = "Better framing";
-"guidance.reason.level_horizon" = "Level horizon";
 "guidance.reason.better_composition" = "Better composition";
+"guidance.reason.group_headroom" = "Better headroom for group";
+"guidance.reason.group_framing" = "Better framing for group";
 
 // Micro Survey
 "survey.title" = "Was that guidance helpful?";

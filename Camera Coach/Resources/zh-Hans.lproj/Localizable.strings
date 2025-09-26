@@ -21,18 +21,24 @@
 "camera.error.preview_failed" = "无法创建预览层";
 
 // Guidance Actions
-"guidance.rotate_left" = "向左旋转%d°";
-"guidance.rotate_right" = "向右旋转%d°";
-"guidance.tilt_up" = "向上倾斜%d°";
-"guidance.tilt_down" = "向下倾斜%d°";
-"guidance.move_left" = "向左移动%d%%";
-"guidance.move_right" = "向右移动%d%%";
+"guidance.move_up" = "向上移动%@";
+"guidance.move_down" = "向下移动%@";
+"guidance.move_left" = "向左移动%@";
+"guidance.move_right" = "向右移动%@";
+
+// Natural Language Amounts
+"guidance.amount.tiny" = "一点点";
+"guidance.amount.little" = "一些";
+"guidance.amount.bit" = "一些";
+"guidance.amount.lot" = "较多";
+"guidance.amount.much" = "很多";
 
 // Guidance Reasons
 "guidance.reason.better_headroom" = "更好的头部空间";
 "guidance.reason.better_framing" = "更好的构图";
-"guidance.reason.level_horizon" = "水平地平线";
 "guidance.reason.better_composition" = "更好的构图";
+"guidance.reason.group_headroom" = "群组更好的头部空间";
+"guidance.reason.group_framing" = "群组更好的构图";
 
 // Micro Survey
 "survey.title" = "这个指导有帮助吗？";

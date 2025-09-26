@@ -197,8 +197,6 @@ public final class GuidanceEngine: ObservableObject {
     
     private func evaluateHintAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
         switch hint.advice.type {
-        case .horizon:
-            return evaluateHorizonAdoption(hint: hint, afterMetrics: afterMetrics)
         case .headroom:
             return evaluateHeadroomAdoption(hint: hint, afterMetrics: afterMetrics)
         case .thirds:
@@ -208,23 +206,7 @@ public final class GuidanceEngine: ObservableObject {
         }
     }
     
-    private func evaluateHorizonAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
-        guard let beforeDegrees = Float(hint.beforeMetrics["horizon_degrees"] ?? ""),
-              let afterDegrees = Float(afterMetrics["horizon_degrees"] ?? "") else {
-            return false
-        }
-        
-        let beforeAbsDegrees = abs(beforeDegrees)
-        let afterAbsDegrees = abs(afterDegrees)
-        
-        // Consider adopted if:
-        // 1. User moved towards level (improvement of at least 1°)
-        // 2. OR achieved level position (within 3°)
-        let improvementDegrees = beforeAbsDegrees - afterAbsDegrees
-        let achievedLevel = afterAbsDegrees <= Config.horizonThresholdDegrees
-        
-        return improvementDegrees >= 1.0 || achievedLevel
-    }
+    // Horizon adoption evaluation removed - no longer needed
     
     // 🚀 WEEK 3: Headroom Adoption Tracking Implementation
     private func evaluateHeadroomAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
@@ -347,21 +329,16 @@ public final class GuidanceEngine: ObservableObject {
     }
     
     private func analyzeFrameAndGenerateGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
-        // Priority order: headroom > horizon > thirds
+        // Priority order: headroom > thirds
         // Only emit guidance if higher priority issues are resolved
-        
+
         // 1. Headroom guidance (highest priority)
         if let headroomAdvice = generateHeadroomGuidance(features) {
             return headroomAdvice
         }
-        
-        // 2. Horizon guidance (independent of headroom - can work without faces)
-        if let horizonAdvice = generateHorizonGuidance(features) {
-            return horizonAdvice
-        }
-        
-        // 3. Rule of thirds (only if headroom and horizon are good)
-        if features.isHeadroomInTarget && features.isHorizonLevel {
+
+        // 2. Rule of thirds (only if headroom is good)
+        if features.isHeadroomInTarget {
             if let thirdsAdvice = generateThirdsGuidance(features) {
                 return thirdsAdvice
             }
@@ -411,9 +388,9 @@ public final class GuidanceEngine: ObservableObject {
         let confidence: Float
         
         if difference > 0 {
-            // Need more headroom - face(s) too low, tilt up/move back
-            let adjustmentDegrees = Int(round(min(abs(difference), Float(Config.maxHeadroomAdjustmentDegrees))))
-            action = .tiltUp(degrees: adjustmentDegrees)
+            // Need more headroom - face(s) too low, move up
+            let adjustmentAmount = naturalLanguageAmount(for: abs(difference))
+            action = .moveUp(amount: adjustmentAmount)
             
             // Adaptive reason based on strategy
             switch strategy {
@@ -431,9 +408,9 @@ public final class GuidanceEngine: ObservableObject {
             }
             confidence = min(0.95, baseConfidence)
         } else {
-            // Too much headroom - face(s) too high, tilt down/move closer
-            let adjustmentDegrees = Int(round(min(abs(difference), Float(Config.maxHeadroomAdjustmentDegrees))))
-            action = .tiltDown(degrees: adjustmentDegrees)
+            // Too much headroom - face(s) too high, move down
+            let adjustmentAmount = naturalLanguageAmount(for: abs(difference))
+            action = .moveDown(amount: adjustmentAmount)
             
             // Adaptive reason based on strategy  
             switch strategy {
@@ -501,58 +478,7 @@ public final class GuidanceEngine: ObservableObject {
         }
     }
     
-    private func generateHorizonGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
-        // Only provide horizon guidance if horizon is stable and tilted
-        guard features.hasStableHorizon,
-              !features.isHorizonLevel else { 
-            return nil 
-        }
-        
-        let degrees = features.horizonDegrees
-        let absDegrees = abs(degrees)
-        
-        // Apply dead zone to prevent guidance spam
-        // Don't guide if user is already "good enough" (±2.0°)
-        if absDegrees <= Config.horizonGoodEnoughDegrees {
-            return nil
-        }
-        
-        // Apply smart hysteresis to prevent oscillation
-        // Only guide if significantly outside threshold + hysteresis
-        let effectiveThreshold = Config.horizonThresholdDegrees + Config.horizonHysteresisDegrees
-        
-        if absDegrees > effectiveThreshold {
-            let action: GuidanceAction
-            let reason: String
-            
-            if degrees > 0 {
-                // Tilted right - rotate left
-                let roundedDegrees = Int(round(absDegrees))
-                action = .rotateLeft(degrees: roundedDegrees)
-                reason = "Level horizon"
-            } else {
-                // Tilted left - rotate right
-                let roundedDegrees = Int(round(absDegrees))
-                action = .rotateRight(degrees: roundedDegrees)
-                reason = "Level horizon"
-            }
-            
-            // 🚀 SMART COOLDOWN: Adaptive cooldown based on improvement
-            let adaptiveCooldown = calculateAdaptiveCooldown(for: .horizon, currentAngle: degrees)
-            
-            return GuidanceAdvice(
-                action: action,
-                type: .horizon,
-                reason: reason,
-                confidence: 0.95,
-                cooldownMs: adaptiveCooldown
-            )
-        } else {
-            return nil
-        }
-        
-        return nil
-    }
+    // Horizon guidance removed - users handle camera leveling by common sense
     
     private func generateThirdsGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
         guard let thirdsOffset = features.thirdsOffsetPercentage,
@@ -565,13 +491,13 @@ public final class GuidanceEngine: ObservableObject {
             
             if thirdsOffset > 0 {
                 // Subject is too far right - move left
-                let percentage = Int(round(abs(thirdsOffset)))
-                action = .moveLeft(percentage: min(percentage, 15)) // Cap at 15%
+                let adjustmentAmount = naturalLanguageAmount(for: abs(thirdsOffset))
+                action = .moveLeft(amount: adjustmentAmount)
                 reason = "Better composition"
             } else {
                 // Subject is too far left - move right
-                let percentage = Int(round(abs(thirdsOffset)))
-                action = .moveRight(percentage: min(percentage, 15))
+                let adjustmentAmount = naturalLanguageAmount(for: abs(thirdsOffset))
+                action = .moveRight(amount: adjustmentAmount)
                 reason = "Better composition"
             }
             
@@ -628,20 +554,27 @@ public final class GuidanceEngine: ObservableObject {
     private func calculateAdaptiveCooldown(for guidanceType: GuidanceType, currentAngle: Float) -> Int {
         let baseCooldown = Config.ruleCooldownMs
         
-        // For horizon guidance, check if user is improving
-        if guidanceType == .horizon {
-            // If user is within "good enough" range, extend cooldown
-            if abs(currentAngle) <= Config.horizonGoodEnoughDegrees {
-                return baseCooldown * 3 // 3x longer cooldown when close to target
-            }
-            
-            // If user is making small improvements, give them more time
-            if abs(currentAngle) <= Config.horizonThresholdDegrees + 2.0 {
-                return baseCooldown * 2 // 2x longer cooldown when improving
-            }
-        }
+        // Horizon-specific logic removed
         
         return baseCooldown
+    }
+
+    // MARK: - Natural Language Helper
+    private func naturalLanguageAmount(for difference: Float) -> String {
+        // Convert percentage difference to natural language
+        // Based on typical headroom adjustments needed
+
+        if difference <= 2.0 {
+            return NSLocalizedString("guidance.amount.tiny", comment: "Very small adjustment")
+        } else if difference <= 5.0 {
+            return NSLocalizedString("guidance.amount.little", comment: "Small adjustment")
+        } else if difference <= 8.0 {
+            return NSLocalizedString("guidance.amount.bit", comment: "Moderate adjustment")
+        } else if difference <= 12.0 {
+            return NSLocalizedString("guidance.amount.lot", comment: "Large adjustment")
+        } else {
+            return NSLocalizedString("guidance.amount.much", comment: "Very large adjustment")
+        }
     }
 }
 

@@ -220,9 +220,6 @@ public final class ReplayRunner: NSObject {
         // In real usage, this would be based on actual user behavior measurement
         
         switch guidance.type {
-        case .horizon:
-            // Simulate 60% adoption rate for horizon guidance
-            return Float.random(in: 0...1) < 0.6
         case .headroom:
             // Simulate 50% adoption rate for headroom guidance (per Week 3 target)
             return Float.random(in: 0...1) < 0.5
@@ -301,18 +298,14 @@ public enum ReplayError: Error, LocalizedError {
 extension GuidanceAction: CustomStringConvertible {
     public var description: String {
         switch self {
-        case .rotateLeft(let degrees):
-            return "rotate_left_\(degrees)"
-        case .rotateRight(let degrees):
-            return "rotate_right_\(degrees)"
-        case .tiltUp(let degrees):
-            return "tilt_up_\(degrees)"
-        case .tiltDown(let degrees):
-            return "tilt_down_\(degrees)"
-        case .moveLeft(let percent):
-            return "move_left_\(percent)"
-        case .moveRight(let percent):
-            return "move_right_\(percent)"
+        case .moveUp(let amount):
+            return "move_up_\(amount.replacingOccurrences(of: " ", with: "_"))"
+        case .moveDown(let amount):
+            return "move_down_\(amount.replacingOccurrences(of: " ", with: "_"))"
+        case .moveLeft(let amount):
+            return "move_left_\(amount.replacingOccurrences(of: " ", with: "_"))"
+        case .moveRight(let amount):
+            return "move_right_\(amount.replacingOccurrences(of: " ", with: "_"))"
         }
     }
 }

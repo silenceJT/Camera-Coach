@@ -9,43 +9,35 @@
 import Foundation
 
 public enum GuidanceAction {
-    case rotateLeft(degrees: Int)
-    case rotateRight(degrees: Int)
-    case tiltUp(degrees: Int)
-    case tiltDown(degrees: Int)
-    case moveLeft(percentage: Int)
-    case moveRight(percentage: Int)
+    case moveUp(amount: String)
+    case moveDown(amount: String)
+    case moveLeft(amount: String)
+    case moveRight(amount: String)
     
     var displayText: String {
         switch self {
-        case .rotateLeft(let degrees):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.rotate_left", comment: "Rotate left guidance"), degrees)
-        case .rotateRight(let degrees):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.rotate_right", comment: "Rotate right guidance"), degrees)
-        case .tiltUp(let degrees):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.tilt_up", comment: "Tilt up guidance"), degrees)
-        case .tiltDown(let degrees):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.tilt_down", comment: "Tilt down guidance"), degrees)
-        case .moveLeft(let percentage):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_left", comment: "Move left guidance"), percentage)
-        case .moveRight(let percentage):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_right", comment: "Move right guidance"), percentage)
+        case .moveUp(let amount):
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_up", comment: "Move up guidance"), amount)
+        case .moveDown(let amount):
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_down", comment: "Move down guidance"), amount)
+        case .moveLeft(let amount):
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_left", comment: "Move left guidance"), amount)
+        case .moveRight(let amount):
+            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_right", comment: "Move right guidance"), amount)
         }
     }
 }
 
 public enum GuidanceType: String, CaseIterable {
-    case horizon = "horizon"
     case headroom = "headroom"
     case thirds = "thirds"
     case leadspace = "leadspace"
-    
+
     var priority: Int {
         switch self {
         case .headroom: return 1      // Highest priority
-        case .horizon: return 2
-        case .thirds: return 3
-        case .leadspace: return 4     // Lowest priority
+        case .thirds: return 2
+        case .leadspace: return 3     // Lowest priority
         }
     }
 }
@@ -101,7 +93,7 @@ public struct GuidanceAdvice {
 extension GuidanceAdvice {
     /// Creates a test instance for development
     static func test(
-        action: GuidanceAction = .tiltUp(degrees: 5),
+        action: GuidanceAction = .moveUp(amount: "a little"),
         type: GuidanceType = .headroom,
         reason: String = "Better headroom",
         confidence: Float = 0.8,

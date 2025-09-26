@@ -386,8 +386,6 @@ public final class FaceDetectionDebugView: UIView {
         switch guidance.type {
         case .headroom:
             color = .orange
-        case .horizon:
-            color = .blue
         case .thirds:
             color = .purple
         case .leadspace:
@@ -401,8 +399,7 @@ public final class FaceDetectionDebugView: UIView {
         let letter: String
         switch guidance.type {
         case .headroom: letter = "H"
-        case .horizon: letter = "L"
-        case .thirds: letter = "T" 
+        case .thirds: letter = "T"
         case .leadspace: letter = "S"
         }
         
@@ -445,18 +442,14 @@ extension DetectionMethod {
 extension GuidanceAction {
     var debugDescription: String {
         switch self {
-        case .rotateLeft(let degrees):
-            return "Rotate ↺ \(degrees)°"
-        case .rotateRight(let degrees):
-            return "Rotate ↻ \(degrees)°"
-        case .tiltUp(let degrees):
-            return "Tilt ↑ \(degrees)°"
-        case .tiltDown(let degrees):
-            return "Tilt ↓ \(degrees)°"
-        case .moveLeft(let percent):
-            return "Move ← \(percent)%"
-        case .moveRight(let percent):
-            return "Move → \(percent)%"
+        case .moveUp(let amount):
+            return "Move ↑ \(amount)"
+        case .moveDown(let amount):
+            return "Move ↓ \(amount)"
+        case .moveLeft(let amount):
+            return "Move ← \(amount)"
+        case .moveRight(let amount):
+            return "Move → \(amount)"
         }
     }
 }
