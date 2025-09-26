@@ -89,8 +89,7 @@ public final class FaceDetectionDebugView: UIView {
         let strategies: [(FaceDetectionStrategy, String)] = [
             (.appleVisionOnly, "Apple Vision"),
             (.enhancedDistance, "Enhanced"),
-            (.hybridMultiScale, "Multi-Scale"),
-            (.externalMLKit, "🤖 ML Kit")
+            (.hybridMultiScale, "Multi-Scale")
         ]
         
         for (strategy, title) in strategies {
@@ -103,7 +102,6 @@ public final class FaceDetectionDebugView: UIView {
                 case .appleVisionOnly: buttonTitle = "Apple"
                 case .enhancedDistance: buttonTitle = "Enhanced"
                 case .hybridMultiScale: buttonTitle = "Multi"
-                case .externalMLKit: buttonTitle = "🤖 ML Kit"
                 }
                 self.strategyButton.setTitle(buttonTitle, for: .normal)
             })
@@ -198,7 +196,6 @@ public final class FaceDetectionDebugView: UIView {
         case .multiScale: methodEmoji = "🔍"
         case .scaled: methodEmoji = "📏"
         case .regionOfInterest: methodEmoji = "🎯"
-        case .mlKitFallback: methodEmoji = "🤖"
         }
         
         debugInfo.append("Method: \(methodEmoji) \(detectionMethod.displayName)")
@@ -441,8 +438,6 @@ extension DetectionMethod {
             return "Scaled"
         case .regionOfInterest:
             return "ROI"
-        case .mlKitFallback:
-            return "ML Kit"
         }
     }
 }

@@ -15,16 +15,15 @@ import QuartzCore
 
 public enum FaceDetectionStrategy {
     case appleVisionOnly          // Default Apple Vision framework
-    case enhancedDistance         // Apple Vision with relaxed thresholds  
+    case enhancedDistance         // Apple Vision with relaxed thresholds
     case hybridMultiScale         // Multiple detection scales
-    case externalMLKit            // Fall back to Google ML Kit (if available)
 }
 
 public final class EnhancedFaceDetector {
     // MARK: - Properties
     private let strategy: FaceDetectionStrategy
     private let appleDetector = FrameAnalyzer()
-    private let mlKitDetector = MLKitFaceDetector()
+    // MLKit detector removed - using Apple Vision only
     
     // MARK: - Initialization
     public init(strategy: FaceDetectionStrategy = .enhancedDistance) {
@@ -44,9 +43,6 @@ public final class EnhancedFaceDetector {
             
         case .hybridMultiScale:
             return detectWithMultiScale(pixelBuffer)
-            
-        case .externalMLKit:
-            return detectWithMLKitFallback(pixelBuffer)
         }
     }
     
@@ -103,33 +99,6 @@ public final class EnhancedFaceDetector {
             detectionMethod: .multiScale,
             confidence: allFaces.isEmpty ? 0.0 : allFaces.max(by: { $0.confidence < $1.confidence })?.confidence ?? 0.0,
             processingTimeMs: processingTime
-        )
-    }
-    
-    private func detectWithMLKitFallback(_ pixelBuffer: CVPixelBuffer) -> EnhancedFaceResult {
-        // First try Apple Vision
-        let appleResult = detectWithEnhancedDistance(pixelBuffer)
-        
-        if !appleResult.faces.isEmpty {
-            return appleResult
-        }
-        
-        // Fall back to ML Kit for better distance detection
-        let mlKitResult = mlKitDetector.detectFaces(in: pixelBuffer)
-        
-        if let error = mlKitResult.error {
-            print("⚠️ ML Kit detection failed: \(error.localizedDescription)")
-            return appleResult.withMethod(.mlKitFallback)
-        }
-        
-        // Convert ML Kit results to our format
-        let enhancedFaces = mlKitResult.faces.map { $0.toEnhancedFaceInfo() }
-        
-        return EnhancedFaceResult(
-            faces: enhancedFaces,
-            detectionMethod: .mlKitFallback,
-            confidence: mlKitResult.confidence,
-            processingTimeMs: mlKitResult.processingTimeMs
         )
     }
     
@@ -259,7 +228,6 @@ public enum DetectionMethod {
     case multiScale
     case scaled
     case regionOfInterest
-    case mlKitFallback
 }
 
 private struct VNDetectFaceRectanglesRequestConfig {

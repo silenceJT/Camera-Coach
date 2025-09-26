@@ -1,6 +1,0 @@
-framework module Pods_Camera_Coach {
-  umbrella header "Pods-Camera Coach-umbrella.h"
-
-  export *
-  module * { export * }
-}
