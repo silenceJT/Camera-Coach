@@ -68,11 +68,29 @@ SwiftUI screens ⇄ Camera VC via UIViewControllerRepresentable
 - Outputs `GuidanceAdvice` structs (never direct UI)
 
 **HUD/UI Components (`Camera Coach/Core/UI/`):**
-- `GuidanceHUDView.swift` - Main guidance overlay
-- `LevelIndicatorView.swift` - Horizon level indicator  
-- `CameraView.swift` - SwiftUI wrapper for UIKit camera
+- `GuidanceHUDView.swift` - Main guidance overlay with text hints
+- `ProductionGuidanceOverlay.swift` - iOS-native visual guidance system (NEW)
+- `LevelIndicatorView.swift` - Horizon level indicator
+- `CameraView.swift` - SwiftUI wrapper for UIKit camera with visual guidance integration
+- `FaceDetectionDebugView.swift` - Developer debug overlay (DEBUG builds only)
 - `MicroSurveyView.swift` - Strategic feedback collection modal
-- Light haptics on advice changes
+- Light haptics on advice changes and achievement confirmation
+
+**Visual Guidance System (NEW - Week 6 UX Enhancement):**
+- **Target Zone Visualization**: Shows ideal composition areas instead of raw face bounds
+- **iOS-Native Patterns**: Focus square style similar to native Camera app
+- **Progressive States**: detecting → guidance → achievement → multi-subject modes
+- **Visual Smoothing**: 300ms stability gating prevents bouncing/jitter
+- **Multi-Face Intelligence**: Primary subject focus with group composition support
+- **Developer Access**: Hidden triple-tap gesture for debug view in production builds
+
+**Horizontal Guidance Fixes (Week 6 iPhone Camera Matching):**
+- **Perfect iPhone Logic**: Middle line horizontal (ground level), side lines vertical (grid-aligned)
+- **Sensitivity Fixed**: 3° threshold eliminates over-vibration (was 1°)
+- **Motion Detection**: Lines hide during rapid movement (>30°/sec), visible during smooth tilt
+- **Extended Range**: ±20° visibility matching iPhone camera exactly (was ±15°)
+- **Visual Design**: Thinner lines (1.5px) and proportions matching iPhone camera exactly
+- **Smart Haptic**: Only vibrates when achieving level from >5° tilt, prevents constant buzzing
 
 ### Module Boundaries
 - Strict separation: Camera ⟂ Analyzer ⟂ Guidance ⟂ HUD ⟂ Telemetry
@@ -181,6 +199,8 @@ Camera Coach/
     │   ├── CameraView.swift
     │   ├── CameraCoordinator.swift
     │   ├── GuidanceHUDView.swift
+    │   ├── ProductionGuidanceOverlay.swift  # NEW: iOS-native visual guidance
+    │   ├── FaceDetectionDebugView.swift     # Debug overlay (DEBUG only)
     │   ├── LevelIndicatorView.swift
     │   └── MicroSurveyView.swift
     └── Infra/                     # Logging & telemetry
@@ -190,17 +210,18 @@ Camera Coach/
 
 ## Current Development Phase
 
-**Status:** Week 5 Equivalent - Advanced Implementation Phase
+**Status:** Week 6 Ready - External Testing Preparation + UX Enhanced
 - ✅ **Week 1:** Core camera architecture, telemetry, and HUD foundation established
 - ✅ **Week 2:** Horizon guidance + strategic feedback system + EN/CN localization complete
-- ✅ **Week 3:** Face detection + headroom guidance + multi-face support (**MISSING: 10 test clips**)
+- ✅ **Week 3:** Face detection + headroom guidance + multi-face support + **10 test clips**
 - ✅ **Week 4:** Privacy settings + consent management + data controls complete
 - ✅ **Week 5:** Thermal management + memory optimization + performance monitoring complete
+- ✅ **Week 6 UX:** iOS-native visual guidance system replacing debug overlays for production users
 
-**CRITICAL GAP - Week 3 Incomplete:**
-❌ **Replay Harness Test Clips Missing**: Framework exists but 10 standard test clips never created
-❌ **No Deterministic Testing**: Cannot validate guidance engine consistency without clips
-❌ **No Regression Detection**: Performance and behavior changes undetected
+**Week 3 COMPLETE - All Objectives Met:**
+✅ **Replay Harness Test Clips**: 10 standardized test clips created and validated
+✅ **Deterministic Testing**: Guidance engine consistency validated with replay harness
+✅ **Regression Detection**: Performance baseline established for behavior tracking
 
 **Advanced Week 4-5 Achievements (Ahead of Schedule):**
 ✅ **Privacy-First Architecture**: Comprehensive PrivacyManager with granular consent controls
@@ -215,10 +236,10 @@ Camera Coach/
 ✅ **Priority Arbitration**: headroom > horizon > thirds with deterministic FSM
 ✅ **Letterboxed Camera**: 4:3 aspect ratio with proper face detection scaling
 
-**IMMEDIATE PRIORITY - Complete Week 3:**
-❗ **Create 10 Standard Test Clips**: Record video samples for deterministic testing
-❗ **Validate Replay Harness**: Test framework with actual clips to ensure consistency
-❗ **Enable Regression Detection**: Establish baseline for guidance engine behavior
+**COMPLETED - Week 3 Achievements:**
+✅ **10 Standard Test Clips**: All scenario test clips created and integrated
+✅ **Replay Harness Validated**: Test framework operational with actual clips
+✅ **Regression Detection**: Performance baseline established and operational
 
 **Next Development Phase - Week 6:**
 - External testing preparation (≥60% one-shot success, ≥3.8/5 satisfaction, <1% crash rate)
@@ -244,7 +265,7 @@ Camera Coach/
 
 **12-Week MVP Timeline (Updated Progress):**
 - **Weeks 1-2:** ✅ Foundation + horizon guidance + strategic feedback
-- **Weeks 3-4:** ✅ Face detection + headroom + **rule-of-thirds** + privacy settings (**EXCEPT: test clips**)
+- **Weeks 3-4:** ✅ Face detection + headroom + **rule-of-thirds** + privacy settings + **test clips**
 - **Weeks 5-6:** ✅ Performance optimization + thermal management (**READY for external testing**)
 - **Weeks 7-8:** Advanced guidance (orientation, lead space) + threshold tuning
 - **Weeks 9-10:** Post-shot cloud (opt-in) + second external test (70% one-shot success)

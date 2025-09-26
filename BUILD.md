@@ -1,11 +1,12 @@
-# Camera Coach - TestFlight Build Instructions
+# Camera Coach - Week 6 TestFlight Build Instructions
 
 ## Prerequisites
 
-1. **Xcode 15.0+** installed
+1. **Xcode 17.0+** installed
 2. **Apple Developer Account** with TestFlight access
 3. **Development Team**: M6M9GH2JWC (already configured)
 4. **Bundle ID**: jiatao.Camera-Coach (already configured)
+5. **iOS 26+ Deployment Target** for latest hardware optimization
 
 ## Quick TestFlight Build
 
@@ -59,33 +60,50 @@ xcrun altool --upload-app \
 
 **Current Settings:**
 - **Marketing Version**: 1.0
-- **Build Number**: 1
-- **Deployment Target**: iOS 18.5
+- **Build Number**: 6 (Week 6 release)
+- **Deployment Target**: iOS 26.0
 - **Code Signing**: Automatic
 - **Team**: M6M9GH2JWC
+- **Configuration**: Release (optimized for performance)
 
 ## Pre-Release Checklist
 
-### Week 2 Completion Requirements
+### Week 6 External Testing Requirements
 
-- [x] **Micro-Survey Modal**: Post-shot helpful Y/N + satisfaction rating
-- [x] **Localization**: EN/CN support with Localizable.strings
-- [x] **Horizon Threshold**: Fixed to 3° per specification (was 5°)
-- [x] **Guidance Rate**: 300ms stability + 600ms cooldown per FSM spec
-- [x] **Performance**: Targeting ≥24fps with p95 latency ≤80ms
-- [x] **Telemetry**: Complete event logging pipeline
+- [x] **Face Detection**: Multi-face detection with primary subject selection
+- [x] **Headroom Guidance**: 7-12% frame height targeting with group support
+- [x] **Priority System**: headroom > horizon > thirds > leadspace deterministic FSM
+- [x] **Test Infrastructure**: 10 standard test clips with replay harness validation
+- [x] **Privacy Controls**: Comprehensive PrivacyManager with granular consent
+- [x] **Thermal Management**: Dynamic performance degradation for sustained use
+- [x] **Performance**: ≥24fps sustained, p95 latency ≤80ms validated
+- [x] **Strategic Feedback**: Non-intrusive micro-survey with EN/CN localization
 
-### Manual Testing
+### Week 6 Manual Testing Protocol
 
 ```bash
-# 1. Install on physical device
-# 2. Run 15-minute soak test:
-#    - Monitor FPS (should stay ≥24)
-#    - Check guidance prompts (≤8 per minute)
-#    - Test micro-survey after photo
-#    - Verify horizon guidance at ±3°
-# 3. Export and verify logs work
-# 4. Test Chinese localization
+# 1. Install on iPhone 17 Pro (or equivalent)
+# 2. Run comprehensive 15-minute soak test:
+#    - Monitor sustained FPS (≥24fps target)
+#    - Test face detection across all scenarios
+#    - Verify headroom guidance (7-12% frame height)
+#    - Check guidance priority: headroom > horizon > thirds
+#    - Validate stability window (300ms) and cooldown (600ms)
+#    - Test thermal throttling behavior
+#    - Verify micro-survey strategic timing
+# 3. Scenario coverage validation:
+#    - Portrait (single face): headroom guidance
+#    - Group photos (multiple faces): primary subject selection
+#    - Landscape/tilted horizon: horizon guidance
+#    - Mixed scenarios: priority arbitration
+# 4. Privacy & localization:
+#    - Test privacy settings and consent flows
+#    - Verify Chinese localization accuracy
+#    - Validate on-device processing (no network calls)
+# 5. Performance validation:
+#    - Export logs and verify telemetry pipeline
+#    - Check memory usage under multi-face scenarios
+#    - Validate thermal state monitoring
 ```
 
 ## Version Management
@@ -100,30 +118,64 @@ agvtool next-version -all
 # Project Settings → General → Build (increment)
 ```
 
-## Release Notes Template
+## Week 6 Release Notes Template
 
 ```
-# Camera Coach - Week 2 TestFlight Build
+# Camera Coach - Week 6 External Testing Build
 
-## ✅ New Features
-- Post-shot micro-survey for guidance feedback
-- EN/CN localization support
-- Improved horizon guidance sensitivity (3° threshold)
+## 🎯 Ready for External Testing
+Week 6 milestone: First external beta ready for 20-30 testers
 
-## 🐛 Bug Fixes  
-- Fixed guidance rate timing per FSM specification
-- Improved stability window to 300ms
+## ✅ Major Features Complete
+- **Face Detection**: Multi-face detection with primary subject selection
+- **Headroom Guidance**: Intelligent 7-12% frame height targeting
+- **Priority System**: headroom > horizon > thirds deterministic arbitration
+- **Test Infrastructure**: 10 standardized test clips with replay harness
+- **Privacy-First**: Comprehensive on-device processing with granular controls
+- **Thermal Management**: Dynamic performance degradation for sustained use
 
-## 📊 Telemetry
-- Complete event tracking pipeline
-- Micro-survey feedback logging
-- Performance metrics collection
+## 🚀 Performance Achievements
+- **Sustained FPS**: ≥24fps validated with thermal fallback from 30fps
+- **Processing Speed**: p95 latency ≤80ms @ 720p resolution
+- **Memory Optimization**: Pressure-aware multi-face detection (10→5→3→1)
+- **Stability**: 300ms stability window + 600ms cooldown per guidance type
 
-## 🧪 Testing Focus
-- Horizon guidance effectiveness at ±3°
-- Micro-survey UX and completion rates
-- Chinese localization accuracy
-- Performance stability (≥24fps target)
+## 📱 User Experience
+- **Single Hint Display**: One guidance hint at a time, never overwhelming
+- **Strategic Feedback**: Non-intrusive micro-survey after photo sessions
+- **Dual Language**: English/Chinese localization with cultural adaptation
+- **Visual Polish**: Clear directional guidance with subtle haptic feedback
+
+## 🛡️ Privacy & Security
+- **On-Device First**: 100% local processing during live camera preview
+- **Explicit Consent**: Cloud features require user opt-in with granular controls
+- **Data Transparency**: Clear usage descriptions with easy deletion options
+- **Wi-Fi Only**: Cloud uploads restricted to Wi-Fi connections only
+
+## 🧪 External Testing Focus Areas
+**SUCCESS CRITERIA:**
+- One-shot success rate ≥60% (hint → photo kept ≤6s)
+- User satisfaction ≥3.8/5 (micro-survey ratings)
+- Crash rate <1% (TestFlight + MetricKit analytics)
+
+**TESTING SCENARIOS:**
+- Portrait photos (single person headroom guidance)
+- Group photos (multi-face primary subject selection)
+- Landscape/outdoor scenes (horizon guidance)
+- Mixed scenarios (priority system validation)
+- Extended use (thermal and performance monitoring)
+
+## 📊 Analytics & Telemetry
+- Complete event pipeline: session_start/stop, hint_shown/adopted, photo_kept
+- Performance monitoring: fps_sample, thermal_sample, memory_pressure
+- User feedback: micro-survey responses with privacy protection
+- Crash reporting: MetricKit integration for stability tracking
+
+## 🔧 Technical Specifications
+- **iOS 26+ Required**: Optimized for iPhone 17 Pro and latest hardware
+- **Swift 6.0**: Latest language features with structured concurrency
+- **Architecture**: UIKit camera + SwiftUI shell, clean module separation
+- **Frameworks**: AVFoundation, Vision, CoreMotion, SwiftUI + UIKit hybrid
 ```
 
 ## Troubleshooting
@@ -145,9 +197,15 @@ agvtool next-version -all
    - Check for missing compliance information
    - Verify no restricted APIs are used
 
-## Next Steps (Week 3)
+## Week 6 External Testing Deployment
 
-- [ ] Integrate face detection + headroom guidance
-- [ ] Implement replay harness for testing
-- [ ] Add deterministic priority: headroom > horizon
-- [ ] Prepare for external beta testing (≥10 users)
+### TestFlight External Beta Setup
+1. **Create External Test Group**: 20-30 beta testers
+2. **Beta App Description**: Clear testing instructions and focus areas
+3. **Testing Duration**: 7 days with daily analytics monitoring
+4. **Success Metrics**: Track one-shot success, satisfaction, crash rates
+
+### Post-Week 6 Next Steps
+- [ ] **Week 7-8**: Advanced guidance (orientation, lead space) + threshold tuning
+- [ ] **Week 9-10**: Post-shot cloud features (opt-in) + second external test (70% success)
+- [ ] **Week 11-12**: App Store submission preparation + launch
