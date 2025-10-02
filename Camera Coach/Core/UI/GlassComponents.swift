@@ -10,17 +10,20 @@ import SwiftUI
 
 // MARK: - Glass Container (Core Primitive)
 
-/// Reusable glass wrapper using iOS native materials (iOS 26+ optimized)
+/// Reusable glass wrapper using iOS native materials with accessibility fallbacks
 @available(iOS 26.0, *)
 struct GlassContainer<S: Shape, Content: View>: View {
     let shape: S
+    let material: Material
     @ViewBuilder var content: () -> Content
     @Environment(\.accessibilityReduceTransparency) private var reduceTrans
+    @Environment(\.colorScheme) private var colorScheme
 
     init(in shape: S,
-         displayMode: String = "automatic",  // Placeholder for future API
+         material: Material = .ultraThinMaterial,
          @ViewBuilder content: @escaping () -> Content) {
         self.shape = shape
+        self.material = material
         self.content = content
     }
 
@@ -29,10 +32,23 @@ struct GlassContainer<S: Shape, Content: View>: View {
             .padding(12)
             .background {
                 if reduceTrans {
-                    shape.fill(Color(uiColor: .systemBackground))
+                    // Accessibility: Opaque background with higher contrast border
+                    shape.fill(Color(uiColor: .systemBackground).opacity(0.95))
+                        .overlay(
+                            shape.stroke(
+                                Color(uiColor: colorScheme == .dark ? .white : .black).opacity(0.3),
+                                lineWidth: 1.0
+                            )
+                        )
                 } else {
-                    // iOS 26 native camera-style glass using .ultraThinMaterial
-                    shape.fill(.ultraThinMaterial)
+                    // iOS 26 Liquid Glass effect using Material API (best available)
+                    shape.fill(material)
+                        .overlay(
+                            shape.stroke(
+                                Color.white.opacity(CGFloat(Config.glassBorderOpacity)),
+                                lineWidth: Config.glassBorderWidth
+                            )
+                        )
                 }
             }
             .clipShape(shape)
@@ -197,7 +213,7 @@ struct GlassPill: View {
     var body: some View {
         GlassContainer(
             in: Capsule(),
-            displayMode: "always"
+            material: .ultraThinMaterial
         ) {
             Text(text)
                 .font(.callout.weight(.semibold))
