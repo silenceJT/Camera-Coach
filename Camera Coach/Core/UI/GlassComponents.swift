@@ -65,7 +65,7 @@ struct GlassCard: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Image(systemName: template.category.iconName)
+            Image(systemName: template.iconName)
                 .font(.body)
                 .foregroundStyle(.primary)
 
@@ -261,14 +261,7 @@ struct GlassShelfWrapper: View {
 // MARK: - Template Category Extensions
 
 extension TemplateCategory {
-    var iconName: String {
-        switch self {
-        case .full_body: return "person.fill"
-        case .half_body: return "person.crop.rectangle.fill"
-        case .close_up: return "person.crop.circle.fill"
-        case .couple: return "person.2.fill"
-        }
-    }
+    // NOTE: iconName removed - now loaded from templates.json per template
 
     var shortDisplayName: String {
         switch self {
@@ -300,6 +293,7 @@ struct GlassComponents_Previews: PreviewProvider {
                         id: "preview_full",
                         category: .full_body,
                         description: "Full body preview",
+                        iconName: "person.fill",
                         orientation: .portrait,
                         headAnchorRect: CGRect(x: 0.3, y: 0.1, width: 0.4, height: 0.3),
                         headroomRangePct: HeadroomRange(min: 7, max: 12),
@@ -315,6 +309,7 @@ struct GlassComponents_Previews: PreviewProvider {
                         id: "preview_half",
                         category: .half_body,
                         description: "Half body preview",
+                        iconName: "person.crop.rectangle.fill",
                         orientation: .portrait,
                         headAnchorRect: CGRect(x: 0.3, y: 0.15, width: 0.4, height: 0.35),
                         headroomRangePct: HeadroomRange(min: 7, max: 12),

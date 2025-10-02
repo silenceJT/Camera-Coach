@@ -15,6 +15,7 @@ public struct Template: Codable, Identifiable, Hashable {
     public let id: String
     public let category: TemplateCategory
     public let description: String
+    public let iconName: String  // SF Symbol name for UI display
     public let orientation: CameraOrientation
     public let headAnchorRect: CGRect
     public let headroomRangePct: HeadroomRange

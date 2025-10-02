@@ -73,6 +73,7 @@ public final class TemplateEngine: TemplateEngineProtocol, ObservableObject {
                 id: templateData.id,
                 category: templateData.category,
                 description: templateData.description,
+                iconName: templateData.iconName,
                 orientation: templateData.orientation,
                 headAnchorRect: CGRect(
                     x: templateData.headAnchorRect.x,
@@ -232,6 +233,7 @@ public final class TemplateEngine: TemplateEngineProtocol, ObservableObject {
             id: template.id + "_flipped",
             category: template.category,
             description: template.description + " (翻转)",
+            iconName: template.iconName,  // Preserve icon from original template
             orientation: template.orientation,
             headAnchorRect: flippedRect,
             headroomRangePct: template.headroomRangePct,
@@ -247,6 +249,7 @@ private struct TemplateData: Codable {
     let id: String
     let category: TemplateCategory
     let description: String
+    let iconName: String  // SF Symbol name for UI display
     let orientation: CameraOrientation
     let headAnchorRect: RectData
     let headroomRangePct: HeadroomRange
