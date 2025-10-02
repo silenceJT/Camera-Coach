@@ -75,9 +75,51 @@ enum Config {
     static let maxDailyCloudUploads: Int = 5
     static let cloudUploadWiFiOnly: Bool = true
     
-    // MARK: - Success Metrics
+    // MARK: - Template System Configuration (NEW)
+    static let templateAlignmentThresholdPct: Float = 5.0  // When to trigger template alignment guidance
+    static let silhouetteOpacity: Float = 0.3              // 30% opacity for silhouette overlay
+    static let templateAnimationDuration: TimeInterval = 0.4
+    static let autoTemplateRecommendation: Bool = true     // Auto-recommend templates based on face count
+
+    // Template-specific cooldowns
+    static let templateSwitchCooldownMs: Int = 1000             // Prevent rapid template switching
+    static let templateAlignmentCooldownMs: Int = 500           // Template alignment guidance cooldown
+
+    // Template alignment thresholds
+    static let perfectAlignmentThreshold: Float = 0.02         // 2% threshold for "perfect" alignment
+    static let goodAlignmentThreshold: Float = 0.05           // 5% threshold for "good" alignment
+    static let templateConfidenceBoost: Float = 0.15          // Confidence boost for template-based guidance
+
+    // MARK: - Success Metrics (UPDATED FOR TEMPLATE SYSTEM)
     static let hintAdoptionWindowMs: Int = 10000 // 10 seconds
-    static let targetOneShotSuccessRate: Float = 0.6 // 60% by Week 6
-    static let targetUserSatisfaction: Float = 3.8 // 3.8/5 by Week 6
+    static let targetOneShotSuccessRate: Float = 0.75 // 75% by Week 10 (improved with silhouette guidance)
+    static let targetUserSatisfaction: Float = 4.3 // 4.3/5 by Week 10 (significantly improved UX)
     static let maxCrashRate: Float = 0.01 // 1% by Week 6
+
+    // MARK: - Liquid Glass Design Tokens (Week 7)
+    // Corner Radii
+    static let glassShelfCornerRadius: CGFloat = 22        // Shelf container radius
+    static let glassCardCornerRadius: CGFloat = 16         // Individual card radius
+    static let glassPillCornerRadius: CGFloat = 999        // Capsule (max radius)
+
+    // Opacities
+    static let glassShelfOpacity: Float = 0.85             // 85% opacity for shelf
+    static let glassCardOpacity: Float = 0.90              // 90% opacity for cards (higher legibility)
+    static let glassPillOpacity: Float = 0.92              // 92% opacity for hint pill (highest legibility)
+    static let glassBorderOpacity: Float = 0.12            // White border at 12% opacity
+    static let glassBorderWidth: CGFloat = 0.5             // Thin border stroke
+
+    // Shadows
+    static let glassShadowRadius: CGFloat = 8              // Subtle shadow
+    static let glassShadowOffsetY: CGFloat = 2             // Shadow y-offset
+
+    // Animation
+    static let glassAnimationDuration: TimeInterval = 0.12 // 120ms spring animation
+    static let glassSpringResponse: Double = 0.18          // Spring response
+    static let glassSpringDamping: Double = 0.9            // Spring damping fraction
+
+    // Glass performance & degradation
+    static let glassMaxFPSImpact: Float = 2.0              // Max fps drop allowed with glass
+    static let glassDisableOnThermalFair: Bool = true      // Auto-disable at thermal .fair
+    static let glassMaxNestingDepth: Int = 1               // Never nest glass >1 level
 }

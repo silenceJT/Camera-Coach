@@ -390,6 +390,8 @@ public final class FaceDetectionDebugView: UIView {
             color = .purple
         case .leadspace:
             color = .cyan
+        case .templateAlignment:
+            color = .green
         }
         
         context.setFillColor(color.cgColor)
@@ -401,6 +403,7 @@ public final class FaceDetectionDebugView: UIView {
         case .headroom: letter = "H"
         case .thirds: letter = "T"
         case .leadspace: letter = "S"
+        case .templateAlignment: letter = "A"
         }
         
         let attributes: [NSAttributedString.Key: Any] = [
@@ -450,6 +453,12 @@ extension GuidanceAction {
             return "Move ← \(amount)"
         case .moveRight(let amount):
             return "Move → \(amount)"
+        case .alignToTemplate(let offsetX, let offsetY):
+            return "Align to template (△\(String(format: "%.1f", offsetX)), △\(String(format: "%.1f", offsetY)))"
+        case .switchTemplate(let to):
+            return "Switch to \(to.id)"
+        case .adjustForTemplate(let direction, let amount):
+            return "Adjust \(direction) \(amount)"
         }
     }
 }

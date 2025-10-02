@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="390" height="844" viewBox="0 0 390 844" xmlns="http://www.w3.org/2000/svg">
+  <style><![CDATA[
+    .label { font: 12px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#333; }
+    .small { font: 10px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#555; }
+    .stroke{ stroke:#222; fill:none; }
+    .hint  { stroke:#999; fill:none; }
+    .card  { stroke:#bbb; fill:none; }
+    .shelf { stroke:#999; fill:none; }
+    .ink   { stroke:#2d7; fill:none; }
+  ]]></style>
+
+  <!-- Frame & title -->
+  <rect x="0.5" y="0.5" width="389" height="843" rx="24" class="stroke" stroke-width="1.5"/>
+  <text x="12" y="22" class="label">Capture – Portrait (390×844)</text>
+
+  <!-- Hint pill (12 pt below top safe area ≈44) -->
+  <rect x="85" y="56" width="220" height="40" rx="20" class="hint"/>
+  <text x="195" y="82" class="small" text-anchor="middle">Hint pill</text>
+
+  <!-- Camera preview: top=112, bottom=640 (12 pt gap above shelf) -->
+  <rect x="12" y="112" width="366" height="528" rx="18" class="card"/>
+  <text x="24" y="136" class="small">Camera preview (UIKit / AVCaptureVideoPreviewLayer)</text>
+
+  <!-- Thirds grid -->
+  <line x1="134" y1="112" x2="134" y2="640" stroke="#9aa" stroke-dasharray="4 3" stroke-width="0.8" opacity="0.6"/>
+  <line x1="256" y1="112" x2="256" y2="640" stroke="#9aa" stroke-dasharray="4 3" stroke-width="0.8" opacity="0.6"/>
+  <line x1="12"  y1="279" x2="378" y2="279" stroke="#9aa" stroke-dasharray="4 3" stroke-width="0.8" opacity="0.6"/>
+  <line x1="12"  y1="477" x2="378" y2="477" stroke="#9aa" stroke-dasharray="4 3" stroke-width="0.8" opacity="0.6"/>
+
+  <!-- Silhouette (ink, no glass) -->
+  <circle cx="80" cy="236" r="16" class="ink" stroke-width="2"/>
+  <rect x="70" y="246" width="20" height="42" rx="8" class="ink" stroke-width="2"/>
+  <text x="62" y="226" class="small" fill="#2d7">Silhouette (ink, no glass)</text>
+
+  <!-- Template Shelf: top=652, height=90 -->
+  <rect x="12" y="652" width="366" height="90" rx="22" class="shelf"/>
+  <text x="24" y="676" class="small">Template Shelf (Glass)</text>
+
+  <!-- Centered inner cards (4), 84×72 with 8pt gaps; side padding = 3pt each -->
+  <!-- Vertical centering: (90 - 72) / 2 = 9pt -->
+  <rect x="15"  y="661" width="84" height="72" rx="16" class="card"/>
+  <rect x="107" y="661" width="84" height="72" rx="16" class="card"/>
+  <rect x="199" y="661" width="84" height="72" rx="16" class="card"/>
+  <rect x="291" y="661" width="84" height="72" rx="16" class="card"/>
+
+  <!-- Shutter: VISUAL midpoint between shelf bottom (742) and screen bottom (844) -->
+  <!-- centerY = (742 + 844)/2 = 793 -->
+  <circle cx="195" cy="793" r="28" class="stroke" stroke-width="2"/>
+  <text x="195" y="793" class="small" text-anchor="middle" dominant-baseline="middle">Shutter</text>
+</svg>

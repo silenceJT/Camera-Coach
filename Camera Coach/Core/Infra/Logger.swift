@@ -407,6 +407,83 @@ public final class Logger: ObservableObject {
                detectedFaces, limitedTo, memoryPressure)
     }
 
+    // MARK: - Liquid Glass Telemetry (Week 7)
+
+    public func logGlassComponentRendered(type: String, fallbackMode: String) {
+        let event = LogEvent(
+            name: "glass_component_rendered",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "type": type,
+                "fallback_mode": fallbackMode
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Glass component rendered: %{public}@ (mode: %{public}@)", type, fallbackMode)
+    }
+
+    public func logGlassPerfImpact(fpsBefore: Float, fpsAfter: Float, thermalState: ProcessInfo.ThermalState) {
+        let event = LogEvent(
+            name: "glass_perf_impact",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "fps_before": String(format: "%.1f", fpsBefore),
+                "fps_after": String(format: "%.1f", fpsAfter),
+                "fps_delta": String(format: "%.1f", fpsAfter - fpsBefore),
+                "thermal_state": thermalStateString(thermalState),
+                "render_mode": "glass"
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Glass perf impact: %.1f fps → %.1f fps (Δ%.1f, Thermal: %{public}@)",
+               fpsBefore, fpsAfter, fpsAfter - fpsBefore, thermalStateString(thermalState))
+    }
+
+    public func logGlassDegradation(reason: String, componentType: String) {
+        let event = LogEvent(
+            name: "glass_degradation",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "reason": reason,
+                "component_type": componentType
+            ]
+        )
+
+        logEvent(event)
+        os_log(.default, log: osLog, "Glass degradation: %{public}@ (%{public}@)", reason, componentType)
+    }
+
+    public func logTemplateSelected(id: String, category: String, autoRecommended: Bool) {
+        let event = LogEvent(
+            name: "template_selected",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "id": id,
+                "category": category,
+                "auto_recommended": String(autoRecommended)
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Template selected: %{public}@ (%{public}@, auto: %d)", id, category, autoRecommended)
+    }
+
+    public func logTemplateAlignmentAchieved(templateId: String, timeToAlignMs: Int) {
+        let event = LogEvent(
+            name: "template_alignment_achieved",
+            timestamp: Date().timeIntervalSince1970,
+            parameters: [
+                "template_id": templateId,
+                "time_to_align_ms": String(timeToAlignMs)
+            ]
+        )
+
+        logEvent(event)
+        os_log(.info, log: osLog, "Template alignment achieved: %{public}@ in %dms", templateId, timeToAlignMs)
+    }
+
     private func generateCSV() -> Data {
         var csv = "timestamp,event_name,parameters\n"
         

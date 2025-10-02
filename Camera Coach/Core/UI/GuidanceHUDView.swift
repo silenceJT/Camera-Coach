@@ -90,9 +90,9 @@ public final class GuidanceHUDView: UIView {
             guidanceLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
             guidanceLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
             
-            // Timestamp label at top right
+            // Timestamp label at top LEFT (moved to avoid settings button overlap)
             timestampLabel.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 10),
-            timestampLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            timestampLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             timestampLabel.widthAnchor.constraint(equalToConstant: 80),
             timestampLabel.heightAnchor.constraint(equalToConstant: 24),
             
@@ -198,19 +198,22 @@ private final class CompositionGridView: UIView {
         super.init(frame: frame)
         backgroundColor = .clear
         isUserInteractionEnabled = false
+        clipsToBounds = true  // Ensure grid lines stay within camera view bounds
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         backgroundColor = .clear
         isUserInteractionEnabled = false
+        clipsToBounds = true  // Ensure grid lines stay within camera view bounds
     }
-    
+
     override func draw(_ rect: CGRect) {
         guard let context = UIGraphicsGetCurrentContext() else { return }
-        
-        let width = rect.width
-        let height = rect.height
+
+        // Use bounds instead of rect to ensure we're drawing within the view's coordinate system
+        let width = bounds.width
+        let height = bounds.height
         
         // Set line properties
         context.setStrokeColor(UIColor.white.withAlphaComponent(0.3).cgColor)

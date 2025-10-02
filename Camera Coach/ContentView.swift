@@ -22,11 +22,11 @@ struct ContentView: View {
                 CameraView()
                     .ignoresSafeArea()
                 
-                // Top toolbar
+                // Top toolbar - settings button only (time moved to HUD left)
                 VStack {
                     HStack {
                         Spacer()
-                        
+
                         Button(action: {
                             showingSettings = true
                         }) {
@@ -37,10 +37,10 @@ struct ContentView: View {
                                 .background(Color.black.opacity(0.6))
                                 .clipShape(Circle())
                         }
-                        .padding(.top, 50)
-                        .padding(.trailing, 20)
+                        .padding(.top, 60)  // Increased from 50 to give more clearance
+                        .padding(.trailing, 16)  // Slightly less trailing padding
                     }
-                    
+
                     Spacer()
                 }
             }

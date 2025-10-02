@@ -27,7 +27,13 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     // MARK: - Performance Monitoring
     private var lastGuidanceTime: Date = Date.distantPast
     private var guidanceCount = 0
-    
+
+    // MARK: - Glass Performance Monitoring (Week 7)
+    private var glassRenderingEnabled = true
+    private var fpsBeforeGlass: Float = 0
+    private var glassEnabledTime: Date?
+    private var lastFPSCheckTime: Date = Date()
+
     // MARK: - Session Tracking
     private var sessionStartTime: Date = Date()
     private var sessionId: String = UUID().uuidString
@@ -55,11 +61,14 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     
     public func startSession() {
         cameraController.startSession()
-        
+
         // Initialize session tracking
         sessionStartTime = Date()
         sessionId = UUID().uuidString
         consecutivePhotos = 0
+
+        // 🚀 WEEK 7: Enable glass rendering at session start
+        enableGlassRendering()
     }
     
     public func stopSession() {
@@ -91,7 +100,89 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     public func setFaceDetectionStrategy(_ strategy: FaceDetectionStrategy) {
         cameraController.setFaceDetectionStrategy(strategy)
     }
-    
+
+    // MARK: - Template System Control (NEW)
+    public func setCurrentTemplate(_ template: Template?) {
+        guidanceEngine.setCurrentTemplate(template)
+        frameAnalyzer.setCurrentTemplate(template)
+
+        if let template = template {
+            print("🎯 CameraCoordinator template set: \(template.id)")
+            // Log template selection
+            Logger.shared.logTemplateSelected(
+                id: template.id,
+                category: template.category.rawValue,
+                autoRecommended: false
+            )
+        } else {
+            print("🎯 CameraCoordinator template cleared")
+        }
+    }
+
+    // MARK: - Glass Performance Monitoring (Week 7)
+
+    /// Monitor glass rendering performance and auto-disable if fps drops
+    private func monitorGlassPerformance() {
+        guard glassRenderingEnabled else { return }
+
+        let currentTime = Date()
+        guard currentTime.timeIntervalSince(lastFPSCheckTime) >= 1.0 else { return }
+        lastFPSCheckTime = currentTime
+
+        // Get current fps from frame analyzer
+        guard let currentFPS = currentFrameFeatures?.currentFPS else { return }
+
+        // Check thermal state
+        let thermalState = ProcessInfo.processInfo.thermalState
+
+        // Auto-disable glass if performance degrades
+        if currentFPS < 24 || (Config.glassDisableOnThermalFair && thermalState.rawValue >= ProcessInfo.ThermalState.fair.rawValue) {
+            disableGlassRendering(reason: currentFPS < 24 ? "fps" : "thermal")
+
+            // Log performance impact
+            Logger.shared.logGlassPerfImpact(
+                fpsBefore: fpsBeforeGlass > 0 ? fpsBeforeGlass : currentFPS,
+                fpsAfter: currentFPS,
+                thermalState: thermalState
+            )
+        }
+    }
+
+    /// Disable glass rendering and fall back to Material
+    private func disableGlassRendering(reason: String) {
+        guard glassRenderingEnabled else { return }
+
+        glassRenderingEnabled = false
+
+        // Log degradation event
+        Logger.shared.logGlassDegradation(reason: reason, componentType: "shelf")
+
+        print("🎯 Glass rendering disabled: \(reason)")
+
+        // TODO: Notify SwiftUI components to switch to Material fallback
+        // This could be done via a Published property or NotificationCenter
+    }
+
+    /// Enable glass rendering (called at session start)
+    private func enableGlassRendering() {
+        glassRenderingEnabled = true
+        glassEnabledTime = Date()
+        fpsBeforeGlass = currentFrameFeatures?.currentFPS ?? 30.0
+
+        // Log component rendered
+        Logger.shared.logGlassComponentRendered(
+            type: "shelf",
+            fallbackMode: "glass"
+        )
+
+        print("🎯 Glass rendering enabled")
+    }
+
+    /// Check if glass rendering is currently active
+    public func isGlassRenderingActive() -> Bool {
+        return glassRenderingEnabled
+    }
+
     // MARK: - Private Methods - Metrics Collection
     private func collectPhotoMetrics() {
         let currentTime = Date()
@@ -174,21 +265,24 @@ extension CameraCoordinator: CameraControllerDelegate {
     public func cameraController(_ controller: CameraController, didUpdateFrame features: FrameFeatures) {
         // Update current frame features
         currentFrameFeatures = features
-        
+
         // Update guidance engine with current frame features
         guidanceEngine.currentFrameFeatures = features
-        
+
+        // 🚀 WEEK 7: Monitor glass performance
+        monitorGlassPerformance()
+
         // 🚀 NEW: Update level indicator using proper angle provider
         DispatchQueue.main.async { [weak self] in
             self?.hudView?.updateLevelIndicator()
         }
-        
-        // Debug: Log frame features to see what we're working with        
+
+        // Debug: Log frame features to see what we're working with
         // Check if we should process guidance
-        guard shouldShowGuidance() else { 
-            return 
+        guard shouldShowGuidance() else {
+            return
         }
-        
+
         // Process frame through guidance engine
         if let advice = guidanceEngine.processFrame() {
             // Show guidance on main thread

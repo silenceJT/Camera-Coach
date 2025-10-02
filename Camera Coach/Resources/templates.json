@@ -1,0 +1,90 @@
+[
+  {
+    "id": "portrait_full_left_thirds",
+    "category": "full_body",
+    "description": "全身，主体位于左三分之一",
+    "orientation": "portrait",
+    "headAnchorRect": { "x": 0.15, "y": 0.2, "width": 0.15, "height": 0.25 },
+    "headroomRangePct": { "min": 0.07, "max": 0.12 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": true,
+    "aspectVariants": ["9:16", "3:4"]
+  },
+  {
+    "id": "landscape_full_left_thirds",
+    "category": "full_body",
+    "description": "全身，主体位于左三分之一",
+    "orientation": "landscape",
+    "headAnchorRect": { "x": 0.2, "y": 0.3, "width": 0.15, "height": 0.25 },
+    "headroomRangePct": { "min": 0.06, "max": 0.10 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": true,
+    "aspectVariants": ["16:9", "4:3"]
+  },
+  {
+    "id": "portrait_half_right_thirds",
+    "category": "half_body",
+    "description": "半身，主体位于右三分之一",
+    "orientation": "portrait",
+    "headAnchorRect": { "x": 0.70, "y": 0.25, "width": 0.18, "height": 0.3 },
+    "headroomRangePct": { "min": 0.08, "max": 0.13 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": true,
+    "aspectVariants": ["9:16", "3:4"]
+  },
+  {
+    "id": "landscape_half_right_thirds",
+    "category": "half_body",
+    "description": "半身，主体位于右三分之一",
+    "orientation": "landscape",
+    "headAnchorRect": { "x": 0.68, "y": 0.28, "width": 0.18, "height": 0.3 },
+    "headroomRangePct": { "min": 0.06, "max": 0.11 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": true,
+    "aspectVariants": ["16:9", "4:3"]
+  },
+  {
+    "id": "portrait_closeup_center",
+    "category": "close_up",
+    "description": "近景，主体居中",
+    "orientation": "portrait",
+    "headAnchorRect": { "x": 0.42, "y": 0.28, "width": 0.18, "height": 0.25 },
+    "headroomRangePct": { "min": 0.09, "max": 0.14 },
+    "horizonToleranceDeg": 5,
+    "flipAllowed": false,
+    "aspectVariants": ["9:16", "3:4"]
+  },
+  {
+    "id": "landscape_closeup_center",
+    "category": "close_up",
+    "description": "近景，主体居中",
+    "orientation": "landscape",
+    "headAnchorRect": { "x": 0.40, "y": 0.35, "width": 0.20, "height": 0.28 },
+    "headroomRangePct": { "min": 0.08, "max": 0.12 },
+    "horizonToleranceDeg": 5,
+    "flipAllowed": false,
+    "aspectVariants": ["16:9", "4:3"]
+  },
+  {
+    "id": "portrait_couple_symmetry",
+    "category": "couple",
+    "description": "双人对称，居中并肩",
+    "orientation": "portrait",
+    "headAnchorRect": { "x": 0.25, "y": 0.25, "width": 0.5, "height": 0.3 },
+    "headroomRangePct": { "min": 0.08, "max": 0.12 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": false,
+    "aspectVariants": ["9:16", "3:4"]
+  },
+  {
+    "id": "landscape_couple_symmetry",
+    "category": "couple",
+    "description": "双人对称，居中并肩",
+    "orientation": "landscape",
+    "headAnchorRect": { "x": 0.2, "y": 0.3, "width": 0.6, "height": 0.35 },
+    "headroomRangePct": { "min": 0.07, "max": 0.11 },
+    "horizonToleranceDeg": 3,
+    "flipAllowed": false,
+    "aspectVariants": ["16:9", "4:3"]
+  }
+]

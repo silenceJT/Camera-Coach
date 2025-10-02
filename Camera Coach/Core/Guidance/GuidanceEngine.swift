@@ -16,6 +16,16 @@ public final class GuidanceEngine: ObservableObject {
     // MARK: - Properties
     private let provider: FrameFeaturesProvider
     private let logger = Logger.shared
+
+    // MARK: - Template System (NEW)
+    private let templateEngine: TemplateEngine
+    public var currentTemplate: Template? {
+        didSet {
+            if currentTemplate?.id != oldValue?.id {
+                print("🎯 GuidanceEngine current template changed: \(currentTemplate?.id ?? "nil")")
+            }
+        }
+    }
     
     // MARK: - State Management
     private enum State {
@@ -48,8 +58,9 @@ public final class GuidanceEngine: ObservableObject {
     private var hintCheckTimer: Timer?
     
     // MARK: - Initialization
-    public init(provider: FrameFeaturesProvider) {
+    public init(provider: FrameFeaturesProvider, templateEngine: TemplateEngine = TemplateEngine.shared) {
         self.provider = provider
+        self.templateEngine = templateEngine
         startSession()
     }
     
@@ -177,26 +188,41 @@ public final class GuidanceEngine: ObservableObject {
     
     private func extractMetricsFromFeatures(_ features: FrameFeatures) -> [String: String] {
         var metrics: [String: String] = [:]
-        
+
         metrics["horizon_degrees"] = String(format: "%.1f", features.horizonDegrees)
         metrics["horizon_stable"] = String(features.hasStableHorizon)
         metrics["horizon_level"] = String(features.isHorizonLevel)
-        
+
         if let headroom = features.headroomPercentage {
             metrics["headroom_percent"] = String(format: "%.1f", headroom)
         }
-        
+
         if let thirdsOffset = features.thirdsOffsetPercentage {
             metrics["thirds_offset"] = String(format: "%.1f", thirdsOffset)
         }
-        
+
+        // 🚀 NEW: Template-related metrics
+        metrics["has_active_template"] = String(features.hasActiveTemplate)
+        metrics["template_aligned"] = String(features.isTemplateAligned)
+        metrics["template_id"] = features.currentTemplate?.id ?? "none"
+
+        if let alignment = features.templateAlignment {
+            metrics["template_offset_x"] = String(format: "%.3f", alignment.offsetX)
+            metrics["template_offset_y"] = String(format: "%.3f", alignment.offsetY)
+            metrics["template_distance"] = String(format: "%.3f", alignment.distance)
+            metrics["template_confidence"] = String(format: "%.2f", alignment.confidence)
+        }
+
+        metrics["face_count"] = String(features.faceCount)
         metrics["fps"] = String(format: "%.1f", features.currentFPS)
-        
+
         return metrics
     }
     
     private func evaluateHintAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
         switch hint.advice.type {
+        case .templateAlignment:
+            return evaluateTemplateAlignmentAdoption(hint: hint, afterMetrics: afterMetrics)
         case .headroom:
             return evaluateHeadroomAdoption(hint: hint, afterMetrics: afterMetrics)
         case .thirds:
@@ -206,8 +232,37 @@ public final class GuidanceEngine: ObservableObject {
         }
     }
     
+    // 🚀 NEW: Template Alignment Adoption Evaluation
+    private func evaluateTemplateAlignmentAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        guard let template = hint.advice.relatedTemplate,
+              let currentFeatures = currentFrameFeatures else {
+            return false
+        }
+
+        // Calculate alignment improvement
+        let currentAlignment = templateEngine.calculateAlignment(faces: currentFeatures.allFaceRects, template: template)
+
+        // Adoption criteria:
+        // 1. Now within acceptable threshold
+        // 2. Significant improvement in alignment distance
+        // 3. Movement in correct direction
+
+        if currentAlignment.withinThreshold {
+            print("🎯 Template alignment adopted: now within threshold")
+            return true
+        }
+
+        // Extract previous alignment data if available (simplified check for now)
+        if currentAlignment.confidence > 0.8 && currentAlignment.distance < Config.goodAlignmentThreshold {
+            print("🎯 Template alignment adopted: significant improvement")
+            return true
+        }
+
+        return false
+    }
+
     // Horizon adoption evaluation removed - no longer needed
-    
+
     // 🚀 WEEK 3: Headroom Adoption Tracking Implementation
     private func evaluateHeadroomAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
         guard let beforeHeadroomStr = hint.beforeMetrics["headroom_percent"],
@@ -329,28 +384,35 @@ public final class GuidanceEngine: ObservableObject {
     }
     
     private func analyzeFrameAndGenerateGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
-        // Priority order: headroom > thirds
-        // Only emit guidance if higher priority issues are resolved
+        // 🚀 NEW PRIORITY ORDER: Template Alignment > Headroom > Thirds
+        // Template-based guidance has highest priority when active template exists
 
-        // 1. Headroom guidance (highest priority)
-        if let headroomAdvice = generateHeadroomGuidance(features) {
-            return headroomAdvice
+        // 1. Template alignment guidance (HIGHEST PRIORITY)
+        if let templateAdvice = generateTemplateAlignmentGuidance(features) {
+            return templateAdvice
         }
 
-        // 2. Rule of thirds (only if headroom is good)
-        if features.isHeadroomInTarget {
+        // 2. Headroom guidance (only if no template alignment needed)
+        if !features.needsTemplateAlignment {
+            if let headroomAdvice = generateHeadroomGuidance(features) {
+                return headroomAdvice
+            }
+        }
+
+        // 3. Rule of thirds (only if headroom is good and no template issues)
+        if features.isHeadroomInTarget && !features.needsTemplateAlignment {
             if let thirdsAdvice = generateThirdsGuidance(features) {
                 return thirdsAdvice
             }
         }
-        
+
         // Clear currentGuidance when no new guidance is generated
         // This prevents the guidance engine from staying "stuck" with old guidance
         // after the user corrects their position
         if currentGuidance != nil {
             currentGuidance = nil
         }
-        
+
         return nil
     }
     
@@ -512,7 +574,120 @@ public final class GuidanceEngine: ObservableObject {
         
         return nil
     }
-    
+
+    // 🚀 NEW: Template Alignment Guidance (HIGHEST PRIORITY)
+    private func generateTemplateAlignmentGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
+        // Only provide guidance if we have an active template and face detection
+        guard let template = currentTemplate ?? features.currentTemplate,
+              features.hasStableFace,
+              !features.allFaceRects.isEmpty else { return nil }
+
+        // Check template-specific cooldown
+        if let lastTime = typeCooldowns[.templateAlignment],
+           Date().timeIntervalSince(lastTime) < Double(Config.templateAlignmentCooldownMs) / 1000.0 {
+            return nil
+        }
+
+        // Calculate alignment using template engine
+        let alignment = templateEngine.calculateAlignment(faces: features.allFaceRects, template: template)
+
+        // Only provide guidance if alignment is not within threshold
+        guard !alignment.withinThreshold else { return nil }
+
+        let action: GuidanceAction
+        let reason: String
+        let confidence: Float
+
+        if alignment.distance > Config.goodAlignmentThreshold {
+            // Significant misalignment - provide specific directional guidance
+            action = .alignToTemplate(offsetX: alignment.offsetX, offsetY: alignment.offsetY)
+            reason = NSLocalizedString("guidance.reason.template_alignment", comment: "Match the silhouette")
+            confidence = 0.9 + Config.templateConfidenceBoost
+        } else {
+            // Minor adjustment needed
+            let direction = determineAlignmentDirection(alignment)
+            let amount = determineAlignmentAmount(alignment)
+            action = .adjustForTemplate(direction: direction, amount: amount)
+            reason = NSLocalizedString("guidance.reason.fine_alignment", comment: "Fine-tune position")
+            confidence = 0.7 + Config.templateConfidenceBoost
+        }
+
+        print("🎯 TEMPLATE ALIGNMENT GUIDANCE: \(reason) - \(action) (confidence: \(String(format: "%.2f", confidence)))")
+
+        return GuidanceAdvice(
+            action: action,
+            type: .templateAlignment,
+            reason: reason,
+            confidence: min(0.95, confidence),
+            cooldownMs: Config.templateAlignmentCooldownMs,
+            relatedTemplate: template,
+            ruleVersion: "template_v1.0"
+        )
+    }
+
+    private func determineAlignmentDirection(_ alignment: TemplateAlignment) -> String {
+        let absOffsetX = abs(alignment.offsetX)
+        let absOffsetY = abs(alignment.offsetY)
+
+        if absOffsetY > absOffsetX {
+            return alignment.offsetY > 0 ? NSLocalizedString("guidance.direction.down", comment: "down") :
+                                         NSLocalizedString("guidance.direction.up", comment: "up")
+        } else {
+            return alignment.offsetX > 0 ? NSLocalizedString("guidance.direction.right", comment: "right") :
+                                         NSLocalizedString("guidance.direction.left", comment: "left")
+        }
+    }
+
+    private func determineAlignmentAmount(_ alignment: TemplateAlignment) -> String {
+        let distance = alignment.distance
+
+        if distance <= 0.02 {
+            return NSLocalizedString("guidance.amount.tiny", comment: "slightly")
+        } else if distance <= 0.05 {
+            return NSLocalizedString("guidance.amount.little", comment: "a little")
+        } else if distance <= 0.1 {
+            return NSLocalizedString("guidance.amount.bit", comment: "a bit")
+        } else {
+            return NSLocalizedString("guidance.amount.lot", comment: "more")
+        }
+    }
+
+    // MARK: - Template Management
+    public func setCurrentTemplate(_ template: Template?) {
+        currentTemplate = template
+        templateEngine.setCurrentTemplate(template)
+
+        if let template = template {
+            print("🎯 GuidanceEngine template set: \(template.id)")
+        } else {
+            print("🎯 GuidanceEngine template cleared")
+        }
+    }
+
+    public func recommendTemplate(for features: FrameFeatures) -> Template? {
+        let orientation: CameraOrientation = features.currentTemplate?.orientation ?? .portrait
+        let faceSize: TemplateCategory? = estimateTemplateCategoryFromFeatures(features)
+
+        return templateEngine.recommendTemplate(
+            faceCount: features.faceCount,
+            orientation: orientation,
+            faceSize: faceSize
+        )
+    }
+
+    private func estimateTemplateCategoryFromFeatures(_ features: FrameFeatures) -> TemplateCategory? {
+        guard let faceSize = features.faceSizePercentage else { return nil }
+
+        // Estimate template category based on face size in frame
+        if faceSize >= 15.0 {
+            return .close_up
+        } else if faceSize >= 8.0 {
+            return .half_body
+        } else {
+            return .full_body
+        }
+    }
+
     private func applyCooldowns(for advice: GuidanceAdvice) {
         let now = Date()
         

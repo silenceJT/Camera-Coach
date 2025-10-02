@@ -20,6 +20,11 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     private let logger = Logger.shared
     private let thermalManager = ThermalManager.shared
     private let memoryProfiler = MemoryProfiler.shared
+
+    // MARK: - Template System (NEW)
+    private var templateEngine: TemplateEngine?
+    private var currentTemplate: Template?
+    private var templateSwitchTime: Date?
     
     // MARK: - Horizon Detection
     private var horizonHistory: [Float] = []
@@ -47,10 +52,30 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
         super.init()
         setupMotionManager()
         setupFaceDetection()
+        setupTemplateSystem()
+    }
+
+    private func setupTemplateSystem() {
+        templateEngine = TemplateEngine.shared
+        print("🎯 FrameAnalyzer template system initialized")
     }
     
     deinit {
         motionManager.stopDeviceMotionUpdates()
+    }
+
+    // MARK: - Template System Control (NEW)
+    public func setCurrentTemplate(_ template: Template?) {
+        if currentTemplate?.id != template?.id {
+            currentTemplate = template
+            templateSwitchTime = Date()
+
+            if let template = template {
+                print("🎯 FrameAnalyzer template set: \(template.id)")
+            } else {
+                print("🎯 FrameAnalyzer template cleared")
+            }
+        }
     }
     
     // MARK: - Public Interface
@@ -85,6 +110,11 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
         // Update performance tracking
         updatePerformanceMetrics(latencyMs: latencyMs)
         
+        // 🚀 NEW: Calculate template alignment if template is active
+        let templateAlignment = calculateTemplateAlignment(faceAnalysis: faceAnalysis)
+        let recommendedTemplate = calculateRecommendedTemplate(faceAnalysis: faceAnalysis)
+        let templateSwitchStableMs = calculateTemplateSwitchStability()
+
         // Create frame features
         let features = FrameFeatures(
             horizonDegrees: horizonDegrees,
@@ -99,6 +129,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             primaryFaceIndex: faceAnalysis.primaryFaceIndex,
             headroomPercentage: faceAnalysis.headroomPercentage,
             thirdsOffsetPercentage: faceAnalysis.thirdsOffsetPercentage,
+            currentTemplate: currentTemplate,
+            templateAlignment: templateAlignment,
+            recommendedTemplate: recommendedTemplate,
+            templateSwitchStableMs: templateSwitchStableMs,
             timestamp: startTime,
             processingLatencyMs: latencyMs,
             thermalState: ProcessInfo.processInfo.thermalState,
@@ -540,6 +574,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             primaryFaceIndex: nil,
             headroomPercentage: nil,
             thirdsOffsetPercentage: nil,
+            currentTemplate: currentTemplate,
+            templateAlignment: nil,
+            recommendedTemplate: nil,
+            templateSwitchStableMs: calculateTemplateSwitchStability(),
             timestamp: startTime,
             processingLatencyMs: 0,
             thermalState: ProcessInfo.processInfo.thermalState,
@@ -665,10 +703,76 @@ private struct FaceAnalysis {
     let sizePercentage: Float?
     let headroomPercentage: Float?       // primary face headroom (legacy)
     let thirdsOffsetPercentage: Float?
-    
+
     // Multi-face support
     let allFaceRects: [CGRect]           // all detected faces
     let faceCount: Int                   // total face count
     let groupHeadroomPercentage: Float?  // topmost face headroom
     let primaryFaceIndex: Int?           // index of primary face in allFaceRects
+}
+
+// MARK: - Template Alignment Calculations (NEW)
+extension FrameAnalyzer {
+    private func calculateTemplateAlignment(faceAnalysis: FaceAnalysis) -> TemplateAlignment? {
+        guard let template = currentTemplate,
+              !faceAnalysis.allFaceRects.isEmpty,
+              let templateEngine = templateEngine else {
+            return nil
+        }
+
+        // Calculate alignment using template engine
+        let alignment = templateEngine.calculateAlignment(faces: faceAnalysis.allFaceRects, template: template)
+
+        print("🎯 Template alignment calculated: distance=\(String(format: "%.3f", alignment.distance)), confidence=\(String(format: "%.2f", alignment.confidence))")
+
+        return alignment
+    }
+
+    private func calculateRecommendedTemplate(faceAnalysis: FaceAnalysis) -> Template? {
+        guard let templateEngine = templateEngine,
+              Config.autoTemplateRecommendation,
+              faceAnalysis.faceCount > 0 else {
+            return nil
+        }
+
+        // Don't recommend if template was just changed recently
+        if let switchTime = templateSwitchTime,
+           Date().timeIntervalSince(switchTime) < 2.0 {
+            return nil
+        }
+
+        let currentOrientation: CameraOrientation = .portrait // TODO: Get from device
+        let estimatedCategory = estimateTemplateCategoryFromFaceAnalysis(faceAnalysis)
+
+        let recommendation = templateEngine.recommendTemplate(
+            faceCount: faceAnalysis.faceCount,
+            orientation: currentOrientation,
+            faceSize: estimatedCategory
+        )
+
+        if let recommendation = recommendation,
+           recommendation.id != currentTemplate?.id {
+            print("🎯 Template recommendation: \(recommendation.id)")
+        }
+
+        return recommendation
+    }
+
+    private func calculateTemplateSwitchStability() -> Int {
+        guard let switchTime = templateSwitchTime else { return 0 }
+        return Int(Date().timeIntervalSince(switchTime) * 1000) // Convert to milliseconds
+    }
+
+    private func estimateTemplateCategoryFromFaceAnalysis(_ faceAnalysis: FaceAnalysis) -> TemplateCategory? {
+        guard let faceSize = faceAnalysis.sizePercentage else { return nil }
+
+        // Estimate template category based on face size in frame
+        if faceSize >= 15.0 {
+            return .close_up
+        } else if faceSize >= 8.0 {
+            return .half_body
+        } else {
+            return .full_body
+        }
+    }
 }

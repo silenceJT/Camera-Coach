@@ -229,6 +229,9 @@ public final class ReplayRunner: NSObject {
         case .leadspace:
             // Simulate 35% adoption rate for leadspace guidance
             return Float.random(in: 0...1) < 0.35
+        case .templateAlignment:
+            // Simulate 60% adoption rate for template alignment guidance (higher due to visual clarity)
+            return Float.random(in: 0...1) < 0.6
         }
     }
     
@@ -306,6 +309,12 @@ extension GuidanceAction: CustomStringConvertible {
             return "move_left_\(amount.replacingOccurrences(of: " ", with: "_"))"
         case .moveRight(let amount):
             return "move_right_\(amount.replacingOccurrences(of: " ", with: "_"))"
+        case .alignToTemplate(let offsetX, let offsetY):
+            return "align_to_template_\(String(format: "%.1f", offsetX))_\(String(format: "%.1f", offsetY))"
+        case .switchTemplate(let to):
+            return "switch_template_\(to.id)"
+        case .adjustForTemplate(let direction, let amount):
+            return "adjust_for_template_\(direction)_\(amount.replacingOccurrences(of: " ", with: "_"))"
         }
     }
 }

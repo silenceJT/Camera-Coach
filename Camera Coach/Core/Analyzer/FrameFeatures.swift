@@ -30,6 +30,12 @@ public struct FrameFeatures {
     // MARK: - Composition
     public let headroomPercentage: Float?  // % of frame height above face (primary subject - LEGACY)
     public let thirdsOffsetPercentage: Float? // horizontal offset from rule of thirds (0 = perfect)
+
+    // MARK: - Template System (NEW)
+    public let currentTemplate: Template?           // Currently active template
+    public let templateAlignment: TemplateAlignment?   // Face-to-template alignment data
+    public let recommendedTemplate: Template?       // Auto-recommended template based on scene
+    public let templateSwitchStableMs: Int          // Ms since last template switch
     
     // MARK: - Performance
     public let timestamp: TimeInterval // when this frame was captured
@@ -53,6 +59,10 @@ public struct FrameFeatures {
         primaryFaceIndex: Int? = nil,
         headroomPercentage: Float?,
         thirdsOffsetPercentage: Float?,
+        currentTemplate: Template? = nil,
+        templateAlignment: TemplateAlignment? = nil,
+        recommendedTemplate: Template? = nil,
+        templateSwitchStableMs: Int = 0,
         timestamp: TimeInterval,
         processingLatencyMs: Int,
         thermalState: ProcessInfo.ThermalState,
@@ -70,6 +80,10 @@ public struct FrameFeatures {
         self.primaryFaceIndex = primaryFaceIndex
         self.headroomPercentage = headroomPercentage
         self.thirdsOffsetPercentage = thirdsOffsetPercentage
+        self.currentTemplate = currentTemplate
+        self.templateAlignment = templateAlignment
+        self.recommendedTemplate = recommendedTemplate
+        self.templateSwitchStableMs = templateSwitchStableMs
         self.timestamp = timestamp
         self.processingLatencyMs = processingLatencyMs
         self.thermalState = thermalState
@@ -115,8 +129,30 @@ public struct FrameFeatures {
     }
     
     public var isPerformanceAcceptable: Bool {
-        return processingLatencyMs <= Config.maxFrameLoopLatencyMs && 
+        return processingLatencyMs <= Config.maxFrameLoopLatencyMs &&
                currentFPS >= Float(Config.minStableFPS)
+    }
+
+    // MARK: - Template System Computed Properties
+    public var hasActiveTemplate: Bool {
+        return currentTemplate != nil
+    }
+
+    public var isTemplateAligned: Bool {
+        return templateAlignment?.withinThreshold == true
+    }
+
+    public var hasTemplateRecommendation: Bool {
+        return recommendedTemplate != nil
+    }
+
+    public var templateSwitchStable: Bool {
+        return templateSwitchStableMs >= Config.templateSwitchCooldownMs
+    }
+
+    public var needsTemplateAlignment: Bool {
+        guard hasActiveTemplate, let alignment = templateAlignment else { return false }
+        return !alignment.withinThreshold && alignment.distance > Config.templateAlignmentThresholdPct
     }
     
     // MARK: - Additional Computed Properties
@@ -148,7 +184,11 @@ extension FrameFeatures {
         groupHeadroomPercentage: Float? = 10.0,
         primaryFaceIndex: Int? = 0,
         headroomPercentage: Float? = 10.0,
-        thirdsOffsetPercentage: Float? = 0.0
+        thirdsOffsetPercentage: Float? = 0.0,
+        currentTemplate: Template? = nil,
+        templateAlignment: TemplateAlignment? = nil,
+        recommendedTemplate: Template? = nil,
+        templateSwitchStableMs: Int = 500
     ) -> FrameFeatures {
         return FrameFeatures(
             horizonDegrees: horizonDegrees,
@@ -163,6 +203,10 @@ extension FrameFeatures {
             primaryFaceIndex: primaryFaceIndex,
             headroomPercentage: headroomPercentage,
             thirdsOffsetPercentage: thirdsOffsetPercentage,
+            currentTemplate: currentTemplate,
+            templateAlignment: templateAlignment,
+            recommendedTemplate: recommendedTemplate,
+            templateSwitchStableMs: templateSwitchStableMs,
             timestamp: Date().timeIntervalSince1970,
             processingLatencyMs: 50,
             thermalState: .nominal,

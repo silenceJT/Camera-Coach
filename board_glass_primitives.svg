@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <style><![CDATA[
+    .label { font: 14px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#333; }
+    .small { font: 10px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; fill:#555; }
+    .stroke{ stroke:#222; fill:none; }
+    .hint  { stroke:#999; fill:none; }
+    .card  { stroke:#bbb; fill:none; }
+    .shelf { stroke:#999; fill:none; }
+  ]]></style>
+
+  <text x="24" y="36" class="label">Glass Primitives (tokens mirrored in code & Figma)</text>
+
+  <!-- Shelf -->
+  <rect x="40" y="80" width="620" height="100" rx="22" class="shelf"/>
+  <text x="40" y="72" class="small">Template Shelf (Glass) — r:22, inner cards r:16</text>
+  <rect x="54" y="92" width="88" height="72" rx="16" class="card"/>
+  <rect x="172" y="92" width="88" height="72" rx="16" class="card"/>
+  <rect x="290" y="92" width="88" height="72" rx="16" class="card"/>
+  <rect x="408" y="92" width="88" height="72" rx="16" class="card"/>
+  <rect x="526" y="92" width="88" height="72" rx="16" class="card"/>
+
+  <!-- Hint Pill -->
+  <rect x="40" y="220" width="220" height="40" rx="20" class="hint"/>
+  <text x="150" y="245" class="small" text-anchor="middle">Hint Pill (Glass) — Callout/Semibold</text>
+
+  <!-- Buttons -->
+  <rect x="40"  y="300" width="140" height="44" rx="12" class="card"/>
+  <text x="110" y="326" class="small" text-anchor="middle">Primary</text>
+  <rect x="200" y="300" width="140" height="44" rx="12" class="card"/>
+  <text x="270" y="326" class="small" text-anchor="middle">Secondary</text>
+
+  <!-- Segmented -->
+  <rect x="40" y="380" width="300" height="36" rx="18" class="card"/>
+  <rect x="46" y="384" width="144" height="28" rx="14" class="stroke"/>
+  <text x="118" y="402" class="small" text-anchor="middle">Left</text>
+  <text x="250" y="402" class="small" text-anchor="middle">Right</text>
+
+  <!-- Nav Bar -->
+  <rect x="40" y="440" width="620" height="56" rx="18" class="card"/>
+  <text x="350" y="470" class="small" text-anchor="middle">Navigation Bar (Glass)</text>
+
+  <!-- Glass Sheet -->
+  <rect x="700" y="120" width="420" height="520" rx="24" class="shelf"/>
+  <text x="910" y="150" class="small" text-anchor="middle">Glass Sheet (40% / 60% detents)</text>
+  <rect x="740" y="190" width="120" height="160" rx="12" class="card"/>
+  <text x="800" y="270" class="small" text-anchor="middle">Thumb</text>
+  <rect x="880" y="210" width="200" height="36" rx="18" class="card"/>
+  <rect x="880" y="266" width="200" height="36" rx="18" class="card"/>
+  <rect x="880" y="322" width="200" height="36" rx="18" class="card"/>
+  <text x="980" y="233" class="small" text-anchor="middle">Template Chip</text>
+  <text x="980" y="289" class="small" text-anchor="middle">Template Chip</text>
+  <text x="980" y="345" class="small" text-anchor="middle">Template Chip</text>
+</svg>
