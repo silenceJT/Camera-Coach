@@ -10,20 +10,17 @@ import SwiftUI
 
 // MARK: - Glass Container (Core Primitive)
 
-/// Reusable glass wrapper using iOS native materials with accessibility fallbacks
+/// Reusable glass wrapper using iOS 26 native .glassEffect() modifier
 @available(iOS 26.0, *)
 struct GlassContainer<S: Shape, Content: View>: View {
     let shape: S
-    let material: Material
     @ViewBuilder var content: () -> Content
     @Environment(\.accessibilityReduceTransparency) private var reduceTrans
     @Environment(\.colorScheme) private var colorScheme
 
     init(in shape: S,
-         material: Material = .ultraThinMaterial,
          @ViewBuilder content: @escaping () -> Content) {
         self.shape = shape
-        self.material = material
         self.content = content
     }
 
@@ -41,17 +38,12 @@ struct GlassContainer<S: Shape, Content: View>: View {
                             )
                         )
                 } else {
-                    // iOS 26 Liquid Glass effect using Material API (best available)
-                    shape.fill(material)
-                        .overlay(
-                            shape.stroke(
-                                Color.white.opacity(CGFloat(Config.glassBorderOpacity)),
-                                lineWidth: Config.glassBorderWidth
-                            )
-                        )
+                    // ✅ iOS 26 REAL Liquid Glass using .glassEffect() modifier
+                    shape.fill(.clear)
                 }
             }
             .clipShape(shape)
+            .glassEffect(.regular.interactive())  // Real iOS 26 Liquid Glass
     }
 }
 
@@ -211,10 +203,7 @@ struct GlassPill: View {
     let text: String
 
     var body: some View {
-        GlassContainer(
-            in: Capsule(),
-            material: .ultraThinMaterial
-        ) {
+        GlassContainer(in: Capsule()) {
             Text(text)
                 .font(.callout.weight(.semibold))
                 .foregroundStyle(.primary)
