@@ -222,17 +222,18 @@ public final class CameraViewController: UIViewController {
             }
         }
         
-        // Setup constraints - Modern iOS Camera app layout
+        // Setup constraints - iOS Camera app layout (per frame_capture_portrait.svg)
         //
-        // MODERN APPROACH: Let SwiftUI self-size, use proper spacing
-        // Bottom-up layout:
-        // 1. Shelf: SwiftUI determines height naturally (~105px with compact design)
-        // 2. Shutter: Fixed 70×70pt, centered in gap between camera and shelf
-        // 3. Camera: Fills available space from top (maximized)
+        // SVG-ACCURATE LAYOUT (Bottom-up):
+        // 1. Shutter: At bottom (y=793 in SVG)
+        // 2. Template Shelf: ABOVE shutter (y=652 in SVG)
+        // 3. Camera: Fills top area (y=112-640 in SVG)
 
         let shutterSize: CGFloat = 70
-        let shelfToShutterGap: CGFloat = 18  // Reduced for more camera space
-        let shutterToCameraGap: CGFloat = 18  // Equal spacing for visual balance
+        let shelfHeight: CGFloat = 90  // Per SVG design
+        let shutterToBottomGap: CGFloat = 40  // Gap between shutter and screen bottom
+        let shelfToShutterGap: CGFloat = 18   // Gap between shelf and shutter
+        let cameraToShelfGap: CGFloat = 12    // Gap between camera and shelf
 
         var constraints: [NSLayoutConstraint] = []
 
@@ -241,29 +242,30 @@ public final class CameraViewController: UIViewController {
            let hostingController = templateSelectorHostingController as? UIViewController,
            let shelfView = hostingController.view {
             constraints += [
-                shelfView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                shelfView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                shelfView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-                // NO heightAnchor - SwiftUI self-sizes
-
-                // Shutter button above shelf
+                // Shutter at bottom (per SVG y=793)
                 shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                shutterButton.bottomAnchor.constraint(equalTo: shelfView.topAnchor, constant: -shelfToShutterGap),
+                shutterButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -shutterToBottomGap),
                 shutterButton.widthAnchor.constraint(equalToConstant: shutterSize),
                 shutterButton.heightAnchor.constraint(equalToConstant: shutterSize),
 
-                // Camera fills space above shutter
+                // Template Shelf ABOVE shutter (per SVG y=652)
+                shelfView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                shelfView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                shelfView.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -shelfToShutterGap),
+                shelfView.heightAnchor.constraint(equalToConstant: shelfHeight),
+
+                // Camera fills space above shelf (per SVG y=112-640)
                 cameraView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
                 cameraView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 cameraView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
                 cameraView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                cameraView.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -shutterToCameraGap),
+                cameraView.bottomAnchor.constraint(equalTo: shelfView.topAnchor, constant: -cameraToShelfGap),
             ]
         } else {
             // Fallback for iOS <26: simple layout without shelf
             constraints += [
                 shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                shutterButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -40),
+                shutterButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -shutterToBottomGap),
                 shutterButton.widthAnchor.constraint(equalToConstant: shutterSize),
                 shutterButton.heightAnchor.constraint(equalToConstant: shutterSize),
 
@@ -271,7 +273,7 @@ public final class CameraViewController: UIViewController {
                 cameraView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
                 cameraView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
                 cameraView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                cameraView.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -shutterToCameraGap),
+                cameraView.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -cameraToShelfGap),
             ]
         }
 
