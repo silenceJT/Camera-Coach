@@ -3,14 +3,15 @@
 //  Camera Coach
 //
 //  HUD overlay view that displays guidance text and composition grid.
-//  Uses UIKit for performance and GPU-friendly drawing.
+//  Uses UIKit for grid/level (crisp vectors) + SwiftUI GlassPill for guidance hints (iOS 26+ glass).
 //
 
 import UIKit
+import SwiftUI
 
 public final class GuidanceHUDView: UIView {
     // MARK: - UI Components
-    private let guidanceLabel = UILabel()
+    private var glassPillHostingController: UIHostingController<AnyView>?
     private let gridView = CompositionGridView()
     private let levelIndicator = LevelIndicatorView()
     private let timestampLabel = UILabel()
@@ -35,17 +36,18 @@ public final class GuidanceHUDView: UIView {
     private func setupUI() {
         backgroundColor = .clear
         isUserInteractionEnabled = false
-        
-        // Setup guidance label
-        guidanceLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        guidanceLabel.textColor = .white
-        guidanceLabel.textAlignment = .center
-        guidanceLabel.numberOfLines = 2
-        guidanceLabel.backgroundColor = UIColor.black.withAlphaComponent(0.7)
-        guidanceLabel.layer.cornerRadius = 8
-        guidanceLabel.layer.masksToBounds = true
-        guidanceLabel.alpha = 0.0
-        
+
+        // Setup GlassPill hosting controller (iOS 26+)
+        if #available(iOS 26.0, *) {
+            let pillView = GlassPill(text: "")
+                .opacity(0)  // Start hidden
+            let hostingController = UIHostingController(rootView: AnyView(pillView))
+            hostingController.view.backgroundColor = .clear
+            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+            glassPillHostingController = hostingController
+            addSubview(hostingController.view)
+        }
+
         // Setup timestamp label (for performance monitoring)
         timestampLabel.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         timestampLabel.textColor = .white
@@ -53,91 +55,89 @@ public final class GuidanceHUDView: UIView {
         timestampLabel.layer.cornerRadius = 4
         timestampLabel.layer.masksToBounds = true
         timestampLabel.textAlignment = .center
-        
+
         // Setup level indicator
         levelIndicator.backgroundColor = .clear
-        
+
         // Add subviews
         addSubview(gridView)
         addSubview(levelIndicator)
-        addSubview(guidanceLabel)
         addSubview(timestampLabel)
-        
+
         // Setup constraints
         setupConstraints()
-        
+
         // Start timestamp updates
         startTimestampUpdates()
     }
     
     private func setupConstraints() {
         gridView.translatesAutoresizingMaskIntoConstraints = false
-        guidanceLabel.translatesAutoresizingMaskIntoConstraints = false
         timestampLabel.translatesAutoresizingMaskIntoConstraints = false
         levelIndicator.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
+
+        var constraints: [NSLayoutConstraint] = [
             // Grid covers entire view
             gridView.topAnchor.constraint(equalTo: topAnchor),
             gridView.leadingAnchor.constraint(equalTo: leadingAnchor),
             gridView.trailingAnchor.constraint(equalTo: trailingAnchor),
             gridView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            
-            // Guidance label positioned above camera button area
-            guidanceLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-            guidanceLabel.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -120),
-            guidanceLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
-            guidanceLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20),
-            guidanceLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
-            
+
             // Timestamp label at top LEFT (moved to avoid settings button overlap)
             timestampLabel.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 10),
             timestampLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             timestampLabel.widthAnchor.constraint(equalToConstant: 80),
             timestampLabel.heightAnchor.constraint(equalToConstant: 24),
-            
+
             // Level indicator covers entire view for positioning flexibility
             levelIndicator.topAnchor.constraint(equalTo: topAnchor),
             levelIndicator.leadingAnchor.constraint(equalTo: leadingAnchor),
             levelIndicator.trailingAnchor.constraint(equalTo: trailingAnchor),
             levelIndicator.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
+        ]
+
+        // GlassPill constraints (iOS 26+ only)
+        if #available(iOS 26.0, *), let pillView = glassPillHostingController?.view {
+            constraints += [
+                // GlassPill positioned in upper third of screen
+                pillView.centerXAnchor.constraint(equalTo: centerXAnchor),
+                pillView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 60),
+                pillView.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
+                pillView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20)
+            ]
+        }
+
+        NSLayoutConstraint.activate(constraints)
     }
     
     // MARK: - Public Interface
     public func showGuidance(_ guidance: GuidanceAdvice) {
-        // Cancel any existing fade animation
-        fadeAnimation?.stopAnimation(true)
-        
-        // Update guidance text
-        guidanceLabel.text = guidance.displayText
-        
         // Validate guidance
-        guard guidance.isValid else {
-            return
-        }
-        
+        guard guidance.isValid else { return }
+
         // Store current guidance
         currentGuidance = guidance
-        
-        // Animate in
-        fadeAnimation = UIViewPropertyAnimator(duration: Config.hudFadeInDuration, curve: .easeInOut) {
-            self.guidanceLabel.alpha = 1.0
-        }
-        
-        fadeAnimation?.addCompletion { _ in
-            // Auto-hide after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+
+        // Update GlassPill with new text (iOS 26+)
+        if #available(iOS 26.0, *) {
+            let pillView = GlassPill(text: guidance.displayText)
+            glassPillHostingController?.rootView = AnyView(pillView)
+
+            // Animate in with SwiftUI transition
+            withAnimation(.easeInOut(duration: Config.hudFadeInDuration)) {
+                glassPillHostingController?.rootView = AnyView(pillView.opacity(1))
+            }
+
+            // Auto-hide after 1.2s (per DoD: glass pill auto-hide ≤1.2s)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 self.hideGuidance()
             }
         }
-        
-        fadeAnimation?.startAnimation()
-        
+
         // Provide haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
-        
+
         // Log the guidance shown
         Logger.shared.logHintShown(
             type: guidance.type.rawValue,
@@ -145,19 +145,17 @@ public final class GuidanceHUDView: UIView {
             ruleVersion: guidance.ruleVersion
         )
     }
-    
+
     public func hideGuidance() {
-        fadeAnimation?.stopAnimation(true)
-        
-        fadeAnimation = UIViewPropertyAnimator(duration: Config.hudFadeOutDuration, curve: .easeInOut) {
-            self.guidanceLabel.alpha = 0.0
+        if #available(iOS 26.0, *) {
+            withAnimation(.easeInOut(duration: Config.hudFadeOutDuration)) {
+                if let currentText = currentGuidance?.displayText {
+                    glassPillHostingController?.rootView = AnyView(GlassPill(text: currentText).opacity(0))
+                }
+            }
         }
-        
-        fadeAnimation?.addCompletion { _ in
-            self.currentGuidance = nil
-        }
-        
-        fadeAnimation?.startAnimation()
+
+        currentGuidance = nil
     }
     
     public func updateHorizonAngle(_ degrees: Float) {
