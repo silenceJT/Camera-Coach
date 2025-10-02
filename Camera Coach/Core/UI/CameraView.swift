@@ -231,9 +231,9 @@ public final class CameraViewController: UIViewController {
 
         let shutterSize: CGFloat = 70
         let shelfHeight: CGFloat = 90  // Per SVG design
-        let shutterToBottomGap: CGFloat = 24  // Closer to screen edge for easier thumb reach
-        let shelfToShutterGap: CGFloat = 32   // More breathing room between shelf and shutter
-        let cameraToShelfGap: CGFloat = 20    // Better visual separation from camera preview
+        let shutterToBottomGap: CGFloat = 16  // Optimized for thumb reach
+        let shelfToShutterGap: CGFloat = 28   // Even spacing for visual balance
+        let cameraToShelfGap: CGFloat = 28    // Even spacing matching shelf-to-shutter gap
 
         var constraints: [NSLayoutConstraint] = []
 

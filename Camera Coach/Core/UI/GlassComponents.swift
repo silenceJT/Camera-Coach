@@ -183,6 +183,7 @@ struct GlassShelf: View {
                 RoundedRectangle(cornerRadius: 18)
                     .fill(.ultraThinMaterial)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 18))  // Clip to wrapper shape
             .padding(.horizontal, 16)
         }
         .padding(.top, 8)
