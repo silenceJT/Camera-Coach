@@ -58,13 +58,13 @@ struct GlassCard: View {
                 .lineLimit(1)
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 56, height: 56)
+        .frame(width: Config.glassCardWidth, height: Config.glassCardHeight)
         .background {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: Config.glassCardCornerRadius)
                 .fill(.ultraThinMaterial)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: Config.glassCardCornerRadius)
                 .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
         }
     }
@@ -148,7 +148,7 @@ struct GlassShelf: View {
 
             // Template Cards Carousel
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: Config.glassCardSpacing) {
                     ForEach(filteredTemplates) { template in
                         GlassCard(
                             template: template,

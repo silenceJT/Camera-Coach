@@ -102,6 +102,13 @@ enum Config {
     static let glassCardCornerRadius: CGFloat = 16         // Individual card radius
     static let glassPillCornerRadius: CGFloat = 999        // Capsule (max radius)
 
+    // Card Dimensions (EXACT SVG SPEC: board_glass_primitives.svg)
+    static let glassCardWidth: CGFloat = 88                // 88pt width per SVG spec
+    static let glassCardHeight: CGFloat = 72               // 72pt height per SVG spec
+
+    // Spacing (EXACT SVG SPEC)
+    static let glassCardSpacing: CGFloat = 10              // 10pt spacing per SVG spec
+
     // Opacities
     static let glassShelfOpacity: Float = 0.85             // 85% opacity for shelf
     static let glassCardOpacity: Float = 0.90              // 90% opacity for cards (higher legibility)
