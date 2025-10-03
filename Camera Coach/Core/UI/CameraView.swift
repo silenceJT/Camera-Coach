@@ -169,6 +169,11 @@ public final class CameraViewController: UIViewController {
         hudView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hudView)
 
+        // 🚀 CRITICAL FIX: Setup GlassPill with proper view controller lifecycle
+        if #available(iOS 26.0, *) {
+            hudView.setupGlassPillHosting(parentViewController: self)
+        }
+
         // 🚀 CRITICAL FIX: Connect HUD to coordinator for horizon updates
         coordinator?.setHUDView(hudView)
 

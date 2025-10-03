@@ -25,9 +25,11 @@ struct GlassContainer<S: Shape, Content: View>: View {
     }
 
     var body: some View {
-        content()
-            .padding(12)
-            .background {
+        // CRITICAL: Content must be SEPARATE from glass effect layer
+        // Glass effect only applies to background, not foreground text
+        ZStack {
+            // Background layer with glass effect
+            Group {
                 if reduceTrans {
                     // Accessibility: Opaque background with higher contrast border
                     shape.fill(Color(uiColor: .systemBackground).opacity(0.95))
@@ -39,11 +41,16 @@ struct GlassContainer<S: Shape, Content: View>: View {
                         )
                 } else {
                     // ✅ iOS 26 REAL Liquid Glass using .glassEffect() modifier
-                    shape.fill(.clear)
+                    shape.fill(.ultraThinMaterial)  // Use material as base for glass effect
+                        .glassEffect(.regular.interactive())  // Apply glass effect ONLY to background
                 }
             }
-            .clipShape(shape)
-            .glassEffect(.regular.interactive())  // Real iOS 26 Liquid Glass
+
+            // Foreground content layer (NOT affected by glass effect)
+            content()
+                .padding(12)
+        }
+        .clipShape(shape)
     }
 }
 
@@ -204,13 +211,22 @@ struct GlassPill: View {
     let text: String
 
     var body: some View {
-        GlassContainer(in: Capsule()) {
+        // Use ZStack to separate glass background from text foreground
+        ZStack {
+            // Background layer with glass effect
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .glassEffect(.regular.interactive())
+
+            // Foreground text layer (NOT affected by glass effect)
             Text(text)
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundColor(.white)
                 .lineLimit(1)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
         }
+        .fixedSize(horizontal: true, vertical: false)  // Let text determine width
         .shadow(
             color: .black.opacity(0.1),
             radius: Config.glassShadowRadius,

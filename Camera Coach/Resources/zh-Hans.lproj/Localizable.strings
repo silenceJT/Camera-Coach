@@ -39,6 +39,15 @@
 "guidance.reason.better_composition" = "画面更强";
 "guidance.reason.group_headroom" = "大家都刚好入镜";
 "guidance.reason.group_framing" = "完美合照";
+"guidance.reason.template_alignment" = "对准参考线";
+
+// Template Alignment Guidance (模板对齐指导)
+"guidance.align_diagonal" = "调整位置";
+"guidance.align_horizontal" = "左右移动";
+"guidance.align_vertical" = "上下调整";
+"guidance.perfect_alignment" = "完美对齐";
+"guidance.switch_template" = "换个模板试试";
+"guidance.adjust_for_template" = "调整对齐";
 
 // Micro Survey
 "survey.title" = "这个指导有帮助吗？";

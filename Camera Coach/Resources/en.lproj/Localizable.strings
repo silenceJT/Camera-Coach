@@ -39,6 +39,15 @@
 "guidance.reason.better_composition" = "Stronger shot";
 "guidance.reason.group_headroom" = "Everyone fits perfectly";
 "guidance.reason.group_framing" = "Perfect group shot";
+"guidance.reason.template_alignment" = "Match the guide";
+
+// Template Alignment Guidance
+"guidance.align_diagonal" = "Adjust position";
+"guidance.align_horizontal" = "Shift sideways";
+"guidance.align_vertical" = "Move up or down";
+"guidance.perfect_alignment" = "Perfect match";
+"guidance.switch_template" = "Try different template";
+"guidance.adjust_for_template" = "Adjust to match";
 
 // Micro Survey
 "survey.title" = "Was that guidance helpful?";

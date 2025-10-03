@@ -20,6 +20,7 @@ public final class GuidanceHUDView: UIView {
     private var currentGuidance: GuidanceAdvice?
     private var fadeAnimation: UIViewPropertyAnimator?
     private var angleProvider: LevelAngleProvider?
+    private weak var parentViewController: UIViewController? // NEEDED for hosting controller lifecycle
 
     // MARK: - GlassPill State
     private var pillState: Any? // Will be GlassPillState on iOS 26+
@@ -41,15 +42,10 @@ public final class GuidanceHUDView: UIView {
         isUserInteractionEnabled = false
 
         // Setup GlassPill hosting controller (iOS 26+)
+        // NOTE: Full setup requires parent view controller - call setupGlassPillHosting() after adding to view hierarchy
         if #available(iOS 26.0, *) {
             let state = GlassPillState()
             pillState = state
-            let wrapper = GlassPillView(state: state)
-            let hostingController = UIHostingController(rootView: wrapper)
-            hostingController.view.backgroundColor = .clear
-            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
-            glassPillHostingController = hostingController
-            addSubview(hostingController.view)
         }
 
         // Setup timestamp label (for performance monitoring)
@@ -80,7 +76,7 @@ public final class GuidanceHUDView: UIView {
         timestampLabel.translatesAutoresizingMaskIntoConstraints = false
         levelIndicator.translatesAutoresizingMaskIntoConstraints = false
 
-        var constraints: [NSLayoutConstraint] = [
+        let constraints: [NSLayoutConstraint] = [
             // Grid covers entire view
             gridView.topAnchor.constraint(equalTo: topAnchor),
             gridView.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -100,20 +96,39 @@ public final class GuidanceHUDView: UIView {
             levelIndicator.bottomAnchor.constraint(equalTo: bottomAnchor)
         ]
 
-        // GlassPill constraints (iOS 26+ only)
-        if #available(iOS 26.0, *), let hostingController = glassPillHostingController as? UIViewController {
-            constraints += [
-                // GlassPill positioned in upper third of screen
-                hostingController.view.centerXAnchor.constraint(equalTo: centerXAnchor),
-                hostingController.view.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 60),
-                hostingController.view.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
-                hostingController.view.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20)
-            ]
-        }
+        // GlassPill constraints set up separately in setupGlassPillHosting() after view controller is available
 
         NSLayoutConstraint.activate(constraints)
     }
     
+    // MARK: - Public Setup
+    public func setupGlassPillHosting(parentViewController: UIViewController) {
+        self.parentViewController = parentViewController
+
+        if #available(iOS 26.0, *), let state = pillState as? GlassPillState {
+            let wrapper = GlassPillView(state: state)
+            let hostingController = UIHostingController(rootView: wrapper)
+            hostingController.view.backgroundColor = .clear
+            hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+
+            // CRITICAL: Proper UIHostingController lifecycle management
+            parentViewController.addChild(hostingController)
+            addSubview(hostingController.view)
+            hostingController.didMove(toParent: parentViewController)
+
+            glassPillHostingController = hostingController
+
+            // Setup constraints
+            NSLayoutConstraint.activate([
+                hostingController.view.centerXAnchor.constraint(equalTo: centerXAnchor),
+                hostingController.view.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 60),
+                hostingController.view.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
+                hostingController.view.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20)
+            ])
+
+        }
+    }
+
     // MARK: - Public Interface
     public func showGuidance(_ guidance: GuidanceAdvice) {
         // Validate guidance
