@@ -11,15 +11,18 @@ import SwiftUI
 
 public final class GuidanceHUDView: UIView {
     // MARK: - UI Components
-    private var glassPillHostingController: UIHostingController<AnyView>?
+    private var glassPillHostingController: Any? // Will be UIHostingController<GlassPillWrapper> on iOS 26+
     private let gridView = CompositionGridView()
     private let levelIndicator = LevelIndicatorView()
     private let timestampLabel = UILabel()
-    
+
     // MARK: - Properties
     private var currentGuidance: GuidanceAdvice?
     private var fadeAnimation: UIViewPropertyAnimator?
     private var angleProvider: LevelAngleProvider?
+
+    // MARK: - GlassPill State
+    private var pillState: Any? // Will be GlassPillState on iOS 26+
     
     // MARK: - Initialization
     public override init(frame: CGRect) {
@@ -39,9 +42,10 @@ public final class GuidanceHUDView: UIView {
 
         // Setup GlassPill hosting controller (iOS 26+)
         if #available(iOS 26.0, *) {
-            let pillView = GlassPill(text: "")
-                .opacity(0)  // Start hidden
-            let hostingController = UIHostingController(rootView: AnyView(pillView))
+            let state = GlassPillState()
+            pillState = state
+            let wrapper = GlassPillView(state: state)
+            let hostingController = UIHostingController(rootView: wrapper)
             hostingController.view.backgroundColor = .clear
             hostingController.view.translatesAutoresizingMaskIntoConstraints = false
             glassPillHostingController = hostingController
@@ -97,13 +101,13 @@ public final class GuidanceHUDView: UIView {
         ]
 
         // GlassPill constraints (iOS 26+ only)
-        if #available(iOS 26.0, *), let pillView = glassPillHostingController?.view {
+        if #available(iOS 26.0, *), let hostingController = glassPillHostingController as? UIViewController {
             constraints += [
                 // GlassPill positioned in upper third of screen
-                pillView.centerXAnchor.constraint(equalTo: centerXAnchor),
-                pillView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 60),
-                pillView.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
-                pillView.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20)
+                hostingController.view.centerXAnchor.constraint(equalTo: centerXAnchor),
+                hostingController.view.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 60),
+                hostingController.view.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 20),
+                hostingController.view.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -20)
             ]
         }
 
@@ -119,14 +123,8 @@ public final class GuidanceHUDView: UIView {
         currentGuidance = guidance
 
         // Update GlassPill with new text (iOS 26+)
-        if #available(iOS 26.0, *) {
-            let pillView = GlassPill(text: guidance.displayText)
-            glassPillHostingController?.rootView = AnyView(pillView)
-
-            // Animate in with SwiftUI transition
-            withAnimation(.easeInOut(duration: Config.hudFadeInDuration)) {
-                glassPillHostingController?.rootView = AnyView(pillView.opacity(1))
-            }
+        if #available(iOS 26.0, *), let state = pillState as? GlassPillState {
+            state.updateText(guidance.displayText, show: true)
 
             // Auto-hide after 1.2s (per DoD: glass pill auto-hide ≤1.2s)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
@@ -147,12 +145,8 @@ public final class GuidanceHUDView: UIView {
     }
 
     public func hideGuidance() {
-        if #available(iOS 26.0, *) {
-            withAnimation(.easeInOut(duration: Config.hudFadeOutDuration)) {
-                if let currentText = currentGuidance?.displayText {
-                    glassPillHostingController?.rootView = AnyView(GlassPill(text: currentText).opacity(0))
-                }
-            }
+        if #available(iOS 26.0, *), let state = pillState as? GlassPillState {
+            state.hide()
         }
 
         currentGuidance = nil
@@ -237,5 +231,37 @@ private final class CompositionGridView: UIView {
         
         // Draw the lines
         context.strokePath()
+    }
+}
+
+// MARK: - GlassPill State Management
+
+@available(iOS 26.0, *)
+@MainActor
+class GlassPillState: ObservableObject {
+    @Published var text: String = ""
+    @Published var isVisible: Bool = false
+
+    func updateText(_ newText: String, show: Bool) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.text = newText
+            self.isVisible = show
+        }
+    }
+
+    func hide() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            self.isVisible = false
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+struct GlassPillView: View {
+    @ObservedObject var state: GlassPillState
+
+    var body: some View {
+        GlassPill(text: state.text)
+            .opacity(state.isVisible ? 1.0 : 0.0)
     }
 }

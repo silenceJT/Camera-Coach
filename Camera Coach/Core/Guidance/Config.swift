@@ -39,8 +39,8 @@ enum Config {
     static let visualUpdateThresholdDegrees: Float = 0.5  // Only update visual if change > 0.5°
     
     // MARK: - Headroom Detection (Relaxed for letterbox camera view)
-    static let targetHeadroomPercentage: ClosedRange<Float> = 5.0...20.0  // Much wider range for easier positioning
-    static let headroomToleranceDegrees: Float = 3.0  // More tolerance before triggering guidance
+    static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0  // Ideal headroom range per design spec
+    static let headroomTolerancePercentage: Float = 2.0  // Percentage tolerance before triggering guidance (was incorrectly named "Degrees")
     
     // 🚀 WEEK 3: Enhanced Headroom Configuration
     static let maxHeadroomAdjustmentDegrees: Int = 8  // Cap tilt adjustments

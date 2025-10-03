@@ -22,14 +22,18 @@ public enum GuidanceAction {
 
     var displayText: String {
         switch self {
-        case .moveUp(let amount):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_up", comment: "Move up guidance"), amount)
-        case .moveDown(let amount):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_down", comment: "Move down guidance"), amount)
-        case .moveLeft(let amount):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_left", comment: "Move left guidance"), amount)
-        case .moveRight(let amount):
-            return String.localizedStringWithFormat(NSLocalizedString("guidance.move_right", comment: "Move right guidance"), amount)
+        case .moveUp(_):
+            // Amount not shown to user - keep it simple
+            return NSLocalizedString("guidance.move_up", comment: "Move up guidance")
+        case .moveDown(_):
+            // Amount not shown to user - keep it simple
+            return NSLocalizedString("guidance.move_down", comment: "Move down guidance")
+        case .moveLeft(_):
+            // Amount not shown to user - keep it simple
+            return NSLocalizedString("guidance.move_left", comment: "Move left guidance")
+        case .moveRight(_):
+            // Amount not shown to user - keep it simple
+            return NSLocalizedString("guidance.move_right", comment: "Move right guidance")
         case .alignToTemplate(let offsetX, let offsetY):
             // Generate natural language based on offset direction
             let horizontalDirection = offsetX > 0.02 ? "right" : (offsetX < -0.02 ? "left" : "")

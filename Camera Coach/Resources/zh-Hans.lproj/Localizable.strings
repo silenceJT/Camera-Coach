@@ -20,25 +20,25 @@
 "camera.error.cannot_add_output" = "无法添加相机输出";
 "camera.error.preview_failed" = "无法创建预览层";
 
-// Guidance Actions
-"guidance.move_up" = "向上移动%@";
-"guidance.move_down" = "向下移动%@";
-"guidance.move_left" = "向左移动%@";
-"guidance.move_right" = "向右移动%@";
+// Guidance Actions (摄影师自然语言 - 简洁版)
+"guidance.move_up" = "靠近";
+"guidance.move_down" = "退后";
+"guidance.move_left" = "左移";
+"guidance.move_right" = "右移";
 
-// Natural Language Amounts
-"guidance.amount.tiny" = "一点点";
-"guidance.amount.little" = "一些";
-"guidance.amount.bit" = "一些";
-"guidance.amount.lot" = "较多";
-"guidance.amount.much" = "很多";
+// Natural Language Amounts (更自然对话化)
+"guidance.amount.tiny" = "一点";
+"guidance.amount.little" = "些许";
+"guidance.amount.bit" = "";
+"guidance.amount.lot" = "再多些";
+"guidance.amount.much" = "";
 
-// Guidance Reasons
-"guidance.reason.better_headroom" = "更好的头部空间";
-"guidance.reason.better_framing" = "更好的构图";
-"guidance.reason.better_composition" = "更好的构图";
-"guidance.reason.group_headroom" = "群组更好的头部空间";
-"guidance.reason.group_framing" = "群组更好的构图";
+// Guidance Reasons (摄影师真实反馈)
+"guidance.reason.better_headroom" = "给主体留点空间";
+"guidance.reason.better_framing" = "构图更好";
+"guidance.reason.better_composition" = "画面更强";
+"guidance.reason.group_headroom" = "大家都刚好入镜";
+"guidance.reason.group_framing" = "完美合照";
 
 // Micro Survey
 "survey.title" = "这个指导有帮助吗？";

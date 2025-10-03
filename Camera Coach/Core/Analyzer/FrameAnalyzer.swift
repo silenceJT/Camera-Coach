@@ -397,7 +397,12 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             let thirdsOffsetPercentage = Float(offset * 100.0)
             
             // Check face stability with enhanced tracking (based on primary face)
-            let stableMs = checkFaceStability(faceCenter: CGPoint(x: primaryFaceRect.midX, y: primaryFaceRect.midY))
+            // IMPORTANT: Normalize face center to 0-1 coordinates for stability check
+            let normalizedFaceCenter = CGPoint(
+                x: primaryFaceRect.midX / imageSize.width,
+                y: primaryFaceRect.midY / imageSize.height
+            )
+            let stableMs = checkFaceStability(faceCenter: normalizedFaceCenter)
             
             return FaceAnalysis(
                 rect: primaryFaceRect,
@@ -501,9 +506,12 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             
             // 🚀 Dynamic stability threshold based on face size and movement patterns
             // Larger faces can tolerate more movement, smaller faces need to be more stable
-            let baseThreshold: CGFloat = 15.0 // base threshold in pixels
+            // NOTE: Coordinates are NORMALIZED (0-1), so 0.02 = 2% of screen width/height
+            let baseThreshold: CGFloat = 0.02 // 2% of screen dimension (was incorrectly 15.0!)
             let dynamicThreshold = baseThreshold // Could adjust based on face size in future
-            
+
+            print("🔍 Face stability: distance=\(String(format: "%.4f", distance)), threshold=\(dynamicThreshold), stable=\(distance < dynamicThreshold)")
+
             if distance < dynamicThreshold {
                 // Face is stable - start or continue counting
                 if faceStabilityStart == nil {

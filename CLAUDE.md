@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git Workflow
+
+**IMPORTANT: Manual Commit Approval Required**
+- **DO NOT** auto-commit changes after making edits
+- **ALWAYS** wait for explicit user request to commit (e.g., "commit changes", "git commit", "push this")
+- Make all requested changes first, then ask user if they want to commit
+- Exception: Only auto-commit during multi-day workflows when explicitly instructed in the task
+
 ## Build and Development Commands
 
 **Building:**

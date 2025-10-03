@@ -387,16 +387,22 @@ public final class GuidanceEngine: ObservableObject {
         // 🚀 NEW PRIORITY ORDER: Template Alignment > Headroom > Thirds
         // Template-based guidance has highest priority when active template exists
 
+        print("🔍 GUIDANCE CHECK: hasActiveTemplate=\(features.hasActiveTemplate), needsTemplateAlignment=\(features.needsTemplateAlignment)")
+
         // 1. Template alignment guidance (HIGHEST PRIORITY)
         if let templateAdvice = generateTemplateAlignmentGuidance(features) {
+            print("✅ Returning TEMPLATE alignment guidance")
             return templateAdvice
         }
 
         // 2. Headroom guidance (only if no template alignment needed)
         if !features.needsTemplateAlignment {
+            print("🔍 No template alignment needed, checking headroom...")
             if let headroomAdvice = generateHeadroomGuidance(features) {
                 return headroomAdvice
             }
+        } else {
+            print("⏸️ Skipping headroom - template alignment needed (distance: \(features.templateAlignment?.distance ?? 0))")
         }
 
         // 3. Rule of thirds (only if headroom is good and no template issues)
@@ -419,21 +425,36 @@ public final class GuidanceEngine: ObservableObject {
     // 🚀 MULTI-FACE ENHANCEMENT: Adaptive Headroom Guidance
     private func generateHeadroomGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
         // Only provide guidance if we have a stable, valid face
-        guard features.hasStableFace else { return nil }
-        
+        guard features.hasStableFace else {
+            print("⏱️ Face not stable yet (stableMs: \(features.faceStableMs)ms, needs: \(Config.faceStabilityThresholdMs)ms)")
+            return nil
+        }
+
+        print("✅ Face STABLE for \(features.faceStableMs)ms - checking headroom guidance...")
+
         // 🚀 NEW: Multi-face adaptive strategy
         let (headroom, strategy) = selectHeadroomStrategy(features)
         
-        guard let selectedHeadroom = headroom else { return nil }
-        
+        guard let selectedHeadroom = headroom else {
+            print("❌ No headroom value available")
+            return nil
+        }
+
+        print("📊 Headroom: \(selectedHeadroom)%, strategy: \(strategy)")
+
         // Skip guidance if primary face is too small (likely false positive)
         if let faceSize = features.faceSizePercentage {
-            guard faceSize >= Config.minFaceSizePercentage else { return nil }
+            guard faceSize >= Config.minFaceSizePercentage else {
+                print("❌ Face too small: \(faceSize)% < \(Config.minFaceSizePercentage)%")
+                return nil
+            }
         }
-        
+
         // Check type-specific cooldown to prevent spamming headroom guidance
-        if let lastTime = typeCooldowns[.headroom], 
+        if let lastTime = typeCooldowns[.headroom],
            Date().timeIntervalSince(lastTime) < Double(Config.ruleCooldownMs) / 1000.0 {
+            let remaining = Int(Double(Config.ruleCooldownMs) / 1000.0 - Date().timeIntervalSince(lastTime))
+            print("⏳ Headroom cooldown active: \(remaining)s remaining")
             return nil
         }
         
@@ -442,7 +463,10 @@ public final class GuidanceEngine: ObservableObject {
         let difference = targetCenter - selectedHeadroom
         
         // Only provide guidance if significantly outside target range
-        guard abs(difference) > Config.headroomToleranceDegrees else { return nil }
+        guard abs(difference) > Config.headroomTolerancePercentage else {
+            print("📏 Headroom within tolerance: diff=\(difference)%, tolerance=\(Config.headroomTolerancePercentage)%")
+            return nil
+        }
         
         // Determine action and confidence based on how far off we are
         let action: GuidanceAction

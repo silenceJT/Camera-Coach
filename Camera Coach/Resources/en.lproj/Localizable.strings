@@ -20,25 +20,25 @@
 "camera.error.cannot_add_output" = "Cannot add camera output";
 "camera.error.preview_failed" = "Failed to create preview layer";
 
-// Guidance Actions
-"guidance.move_up" = "Move up %@";
-"guidance.move_down" = "Move down %@";
-"guidance.move_left" = "Move left %@";
-"guidance.move_right" = "Move right %@";
+// Guidance Actions (Natural photographer language - no %@ when not needed)
+"guidance.move_up" = "Get closer";
+"guidance.move_down" = "Step back";
+"guidance.move_left" = "Shift left";
+"guidance.move_right" = "Shift right";
 
-// Natural Language Amounts
-"guidance.amount.tiny" = "a tiny bit";
-"guidance.amount.little" = "a little";
-"guidance.amount.bit" = "a bit";
-"guidance.amount.lot" = "a lot";
-"guidance.amount.much" = "much more";
+// Natural Language Amounts (Not used with new format)
+"guidance.amount.tiny" = "slightly";
+"guidance.amount.little" = "a bit";
+"guidance.amount.bit" = "";
+"guidance.amount.lot" = "more";
+"guidance.amount.much" = "";
 
-// Guidance Reasons
-"guidance.reason.better_headroom" = "Better headroom";
-"guidance.reason.better_framing" = "Better framing";
-"guidance.reason.better_composition" = "Better composition";
-"guidance.reason.group_headroom" = "Better headroom for group";
-"guidance.reason.group_framing" = "Better framing for group";
+// Guidance Reasons (Clear visual feedback like a real photographer)
+"guidance.reason.better_headroom" = "Give them room to breathe";
+"guidance.reason.better_framing" = "Better crop";
+"guidance.reason.better_composition" = "Stronger shot";
+"guidance.reason.group_headroom" = "Everyone fits perfectly";
+"guidance.reason.group_framing" = "Perfect group shot";
 
 // Micro Survey
 "survey.title" = "Was that guidance helpful?";
