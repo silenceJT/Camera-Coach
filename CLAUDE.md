@@ -55,6 +55,97 @@ UIKit Camera VC → Analyzer (Vision+CoreMotion) → GuidanceEngine (FSM) → HU
 SwiftUI screens ⇄ Camera VC via UIViewControllerRepresentable
 ```
 
+## **CRITICAL: Unified Coordinate System Convention**
+
+**This app uses MULTIPLE frameworks with DIFFERENT coordinate systems. Always convert to UIKit standard:**
+
+### **Framework Coordinate Systems:**
+
+| Framework | Origin | X-Axis | Y-Axis | Notes |
+|-----------|--------|--------|--------|-------|
+| **UIKit** | Top-left | Right → | Down ↓ | **STANDARD - use everywhere** |
+| **Vision** | Bottom-left | Right → | Up ↑ | **INVERTED Y-axis!** |
+| **CoreMotion** | Device-relative | Varies | Varies | Depends on device orientation |
+| **AVFoundation** | Top-left | Right → | Down ↓ | Same as UIKit |
+
+### **Conversion Rules:**
+
+**Vision → UIKit (ALWAYS REQUIRED):**
+```swift
+// For face bounding boxes
+let uikitRect = VNImageRectForNormalizedRect(
+    visionRect,
+    Int(imageWidth),
+    Int(imageHeight)
+)
+
+// For Y-coordinates (CRITICAL):
+// Vision: origin at BOTTOM-left, Y increases upward
+// UIKit: origin at TOP-left, Y increases downward
+let uikitY = imageHeight - visionY  // Flip Y-axis
+
+// For headroom (space above face):
+// Vision provides maxY (top of face in Vision coords)
+let spaceAbove = imageHeight - face.maxY  // Correct
+// NOT: face.minY (this is space BELOW face!)
+
+// 🚨 CRITICAL: Letterbox Preview Mapping (Week 7 Fix)
+// Camera outputs 4:3 (1608×1206) but preview shows 9:19.5 (iPhone screen)
+// User only sees ~35% of capture buffer due to letterboxing!
+// MUST map capture coordinates to visible area:
+let captureAspectRatio = imageWidth / imageHeight  // 1.333
+let previewAspectRatio: CGFloat = 9.0 / 19.5       // 0.462
+let visibleHeightRatio = previewAspectRatio / captureAspectRatio  // ~0.35
+let visibleHeight = imageHeight * visibleHeightRatio
+let invisibleOffset = (imageHeight - visibleHeight) / 2.0
+let faceInVisible = face.maxY - invisibleOffset
+let headroom = (visibleHeight - faceInVisible) / visibleHeight
+// See docs/COORDINATE-SYSTEMS.md for full implementation
+```
+
+**Face Landmarks (Vision-specific):**
+```swift
+// Landmarks are in FACE-RELATIVE normalized coordinates [0-1]
+// NOT image-relative!
+let noseLandmark = landmarks.nose?.normalizedPoints
+// noseLandmark[i].x ∈ [0, 1] relative to face bbox width
+// noseLandmark[i].y ∈ [0, 1] relative to face bbox height
+
+// For horizontal orientation (yaw), coordinates are mirrored:
+let correctedX = 1.0 - landmark.x  // Flip for back camera
+```
+
+### **Common Mistakes to AVOID:**
+
+❌ **WRONG:**
+```swift
+// Using Vision coordinates directly
+let headroom = face.minY / imageHeight  // Measures space BELOW face!
+
+// Not flipping landmark coordinates
+let noseX = nose.x  // Wrong for back camera orientation
+```
+
+✅ **CORRECT:**
+```swift
+// Convert Vision to UIKit first
+let spaceAbove = imageHeight - face.maxY  // Space ABOVE face
+let headroom = spaceAbove / imageHeight
+
+// Flip landmark X for back camera
+let correctedNoseX = 1.0 - nose.x
+```
+
+### **Validation Checklist:**
+
+Before using ANY coordinate from Vision framework:
+- [ ] Is this a Y-coordinate? → Flip it: `imageHeight - visionY`
+- [ ] Is this a face landmark? → Check if X needs flipping: `1.0 - x`
+- [ ] Is this a bounding box? → Use `VNImageRectForNormalizedRect()`
+- [ ] Am I calculating "space above"? → Use `maxY` (top of face), not `minY`
+
+**Reference Implementation:** See `FrameAnalyzer.swift` lines 400-403 (headroom calculation) and lines 707-717 (landmark orientation)
+
 ### Key Components
 
 **CameraController (`Camera Coach/Core/Camera/CameraController.swift`):**
@@ -71,9 +162,11 @@ SwiftUI screens ⇄ Camera VC via UIViewControllerRepresentable
 
 **GuidanceEngine (`Camera Coach/Core/Guidance/GuidanceEngine.swift`):**
 - Finite State Machine: `idle → analyzing → hint_cooldown`
-- Strict priority: `headroom > horizon > thirds > leadspace`
+- **Week 7 Priority**: `template > headroom > lead space > thirds`
 - Single hint at a time with stability ≥300ms, cooldown ≥600ms
 - Outputs `GuidanceAdvice` structs (never direct UI)
+- **Lead Space (Week 7)**: Guides users to leave room in facing direction (20-40% target)
+- **Face Orientation**: Uses Vision's yaw angle for 100% accurate head pose detection
 
 **HUD/UI Components (`Camera Coach/Core/UI/`):**
 - `GuidanceHUDView.swift` - Main guidance overlay with text hints

@@ -137,18 +137,23 @@ public final class GuidanceHUDView: UIView {
         // Store current guidance
         currentGuidance = guidance
 
+        // Check if this is perfect composition
+        let isPerfect = guidance.action.isPerfect
+
         // Update GlassPill with new text (iOS 26+)
         if #available(iOS 26.0, *), let state = pillState as? GlassPillState {
-            state.updateText(guidance.displayText, show: true)
+            state.updateText(guidance.displayText, show: true, perfect: isPerfect)
 
-            // Auto-hide after 1.2s (per DoD: glass pill auto-hide ≤1.2s)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                self.hideGuidance()
+            // Perfect state persists (no auto-hide), others auto-hide after 1.2s
+            if !isPerfect {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    self.hideGuidance()
+                }
             }
         }
 
-        // Provide haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        // Provide haptic feedback (stronger for perfect state)
+        let impactFeedback = UIImpactFeedbackGenerator(style: isPerfect ? .medium : .light)
         impactFeedback.impactOccurred()
 
         // Log the guidance shown
@@ -256,17 +261,20 @@ private final class CompositionGridView: UIView {
 class GlassPillState: ObservableObject {
     @Published var text: String = ""
     @Published var isVisible: Bool = false
+    @Published var isPerfect: Bool = false  // NEW: Green success state
 
-    func updateText(_ newText: String, show: Bool) {
+    func updateText(_ newText: String, show: Bool, perfect: Bool = false) {
         withAnimation(.easeInOut(duration: 0.2)) {
             self.text = newText
             self.isVisible = show
+            self.isPerfect = perfect
         }
     }
 
     func hide() {
         withAnimation(.easeInOut(duration: 0.2)) {
             self.isVisible = false
+            self.isPerfect = false
         }
     }
 }
@@ -277,6 +285,8 @@ struct GlassPillView: View {
 
     var body: some View {
         GlassPill(text: state.text)
+            .tint(state.isPerfect ? .green : .primary)  // Green when perfect
             .opacity(state.isVisible ? 1.0 : 0.0)
+            .animation(.easeInOut(duration: 0.2), value: state.isPerfect)
     }
 }

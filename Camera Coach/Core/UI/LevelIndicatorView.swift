@@ -51,7 +51,7 @@ public final class LevelIndicatorView: UIView {
     private let hapticGenerator = UINotificationFeedbackGenerator()
     
     // Configuration
-    private let visibilityThreshold: Float = 15.0  // Show when |roll| ≤ 15°
+    private let visibilityThreshold: Float = 20.0  // Show when |roll| ≤ 20° (matches iPhone Camera)
     private let levelThreshold: Float = 1.0        // Level when |roll| ≤ 1°
     private let hysteresisThreshold: Float = 1.6   // Revert when |roll| > 1.6°
     private let stableDeadZone: Float = 2.5        // Must exceed 2.5° to exit stable state
@@ -262,19 +262,13 @@ public final class LevelIndicatorView: UIView {
         updateVisibility(for: newState)
         updateGeometry(for: newState)
         
-        // Handle haptics
-        if case .levelMerged = newState, case .levelMerged = oldState {
-            // Do nothing - already in level state
-        } else if case .levelMerged = newState {
-            // Entering level state from non-level state (immediate feedback)
-            hapticGenerator.notificationOccurred(.success)
-            
-            // VoiceOver announcement
+        // Handle VoiceOver announcements only (haptic removed - too aggressive)
+        if case .levelMerged = newState {
+            // VoiceOver announcement for accessibility
             if UIAccessibility.isVoiceOverRunning {
                 UIAccessibility.post(notification: .announcement, argument: "Level")
             }
         } else if case .levelStable = newState {
-            // Entering stable state - device has been level for 200ms
             // VoiceOver announcement for stability
             if UIAccessibility.isVoiceOverRunning {
                 UIAccessibility.post(notification: .announcement, argument: "Stable")
@@ -367,7 +361,9 @@ public final class LevelIndicatorView: UIView {
         rightPath.addLine(to: rightEnd)
         rightShortSegment.path = rightPath.cgPath
         
-        // Middle long segment (rotates with device tilt)
+        // Middle long segment (directly uses gravity-based horizon angle)
+        // IMPORTANT: The angle is now calculated from gravity vector (atan2)
+        // This gives us the TRUE world-relative horizon angle - use it directly
         let middleHalfLength = longSegmentLength / 2
         let middleStart = CGPoint(
             x: center.x - middleHalfLength * cos(angleRadians),

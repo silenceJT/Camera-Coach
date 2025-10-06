@@ -315,6 +315,8 @@ extension GuidanceAction: CustomStringConvertible {
             return "switch_template_\(to.id)"
         case .adjustForTemplate(let direction, let amount):
             return "adjust_for_template_\(direction)_\(amount.replacingOccurrences(of: " ", with: "_"))"
+        case .perfect:
+            return "perfect_composition"
         }
     }
 }

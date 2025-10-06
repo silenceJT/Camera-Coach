@@ -20,11 +20,14 @@
 "camera.error.cannot_add_output" = "无法添加相机输出";
 "camera.error.preview_failed" = "无法创建预览层";
 
-// Guidance Actions (摄影师自然语言 - 简洁版)
-"guidance.move_up" = "靠近";
-"guidance.move_down" = "退后";
-"guidance.move_left" = "左移";
-"guidance.move_right" = "右移";
+// Guidance Actions (相机指导语言 - 针对摄影师用户)
+// moveUp = 需要更多头部空间(人脸太低) → 摄影师将相机向上移动(物理抬高)
+// moveDown = 需要更少头部空间(人脸太高) → 摄影师将相机向下移动(物理降低)
+// 用户是拿着手机的摄影师,不是被拍摄的人!
+"guidance.move_up" = "上移相机";
+"guidance.move_down" = "下移相机";
+"guidance.move_left" = "左移相机";
+"guidance.move_right" = "右移相机";
 
 // Natural Language Amounts (更自然对话化)
 "guidance.amount.tiny" = "一点";
@@ -34,20 +37,28 @@
 "guidance.amount.much" = "";
 
 // Guidance Reasons (摄影师真实反馈)
-"guidance.reason.better_headroom" = "给主体留点空间";
+// 这些描述结果/目标,不是动作(面向摄影师)
+"guidance.reason.better_headroom" = "留白空间";
 "guidance.reason.better_framing" = "构图更好";
 "guidance.reason.better_composition" = "画面更强";
-"guidance.reason.group_headroom" = "大家都刚好入镜";
-"guidance.reason.group_framing" = "完美合照";
+"guidance.reason.group_headroom" = "大家都入镜";
+"guidance.reason.group_framing" = "更好合照";
 "guidance.reason.template_alignment" = "对准参考线";
+"guidance.reason.lead_space" = "前方留白";
+"guidance.reason.center_subject" = "更好平衡";
+"guidance.reason.fine_alignment" = "快对齐了";
 
-// Template Alignment Guidance (模板对齐指导)
-"guidance.align_diagonal" = "调整位置";
-"guidance.align_horizontal" = "左右移动";
-"guidance.align_vertical" = "上下调整";
+// Perfect Composition State (成功反馈)
+"guidance.perfect_composition" = "完美!";
+"guidance.ready_to_shoot" = "轻触拍摄";
+
+// Template Alignment Guidance (相机操作指导给摄影师)
+"guidance.align_diagonal" = "重新取景";
+"guidance.align_horizontal" = "平移相机";
+"guidance.align_vertical" = "倾斜相机";
 "guidance.perfect_alignment" = "完美对齐";
 "guidance.switch_template" = "换个模板试试";
-"guidance.adjust_for_template" = "调整对齐";
+"guidance.adjust_for_template" = "调整取景";
 
 // Micro Survey
 "survey.title" = "这个指导有帮助吗？";

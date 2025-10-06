@@ -459,6 +459,8 @@ extension GuidanceAction {
             return "Switch to \(to.id)"
         case .adjustForTemplate(let direction, let amount):
             return "Adjust \(direction) \(amount)"
+        case .perfect:
+            return "✨ PERFECT ✨"
         }
     }
 }

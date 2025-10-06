@@ -20,11 +20,14 @@
 "camera.error.cannot_add_output" = "Cannot add camera output";
 "camera.error.preview_failed" = "Failed to create preview layer";
 
-// Guidance Actions (Natural photographer language - no %@ when not needed)
-"guidance.move_up" = "Get closer";
-"guidance.move_down" = "Step back";
-"guidance.move_left" = "Shift left";
-"guidance.move_right" = "Shift right";
+// Guidance Actions (Camera coaching language for the PHOTOGRAPHER)
+// moveUp = need MORE headroom (face too low) → PHOTOGRAPHER moves camera UP (raise it physically)
+// moveDown = need LESS headroom (face too high) → PHOTOGRAPHER moves camera DOWN (lower it physically)
+// User is the photographer holding the phone, NOT the subject!
+"guidance.move_up" = "Move up";
+"guidance.move_down" = "Move down";
+"guidance.move_left" = "Pan left";
+"guidance.move_right" = "Pan right";
 
 // Natural Language Amounts (Not used with new format)
 "guidance.amount.tiny" = "slightly";
@@ -34,20 +37,28 @@
 "guidance.amount.much" = "";
 
 // Guidance Reasons (Clear visual feedback like a real photographer)
-"guidance.reason.better_headroom" = "Give them room to breathe";
+// These describe the OUTCOME/GOAL, not the action (photographer-focused)
+"guidance.reason.better_headroom" = "Room to breathe";
 "guidance.reason.better_framing" = "Better crop";
 "guidance.reason.better_composition" = "Stronger shot";
-"guidance.reason.group_headroom" = "Everyone fits perfectly";
-"guidance.reason.group_framing" = "Perfect group shot";
+"guidance.reason.group_headroom" = "Everyone fits";
+"guidance.reason.group_framing" = "Better group shot";
 "guidance.reason.template_alignment" = "Match the guide";
+"guidance.reason.lead_space" = "Room ahead";
+"guidance.reason.center_subject" = "Better balance";
+"guidance.reason.fine_alignment" = "Almost there";
 
-// Template Alignment Guidance
-"guidance.align_diagonal" = "Adjust position";
-"guidance.align_horizontal" = "Shift sideways";
-"guidance.align_vertical" = "Move up or down";
+// Perfect Composition State (Success feedback)
+"guidance.perfect_composition" = "Perfect!";
+"guidance.ready_to_shoot" = "Tap to shoot";
+
+// Template Alignment Guidance (Camera actions for photographer)
+"guidance.align_diagonal" = "Reframe";
+"guidance.align_horizontal" = "Pan camera";
+"guidance.align_vertical" = "Tilt camera";
 "guidance.perfect_alignment" = "Perfect match";
 "guidance.switch_template" = "Try different template";
-"guidance.adjust_for_template" = "Adjust to match";
+"guidance.adjust_for_template" = "Adjust framing";
 
 // Micro Survey
 "survey.title" = "Was that guidance helpful?";

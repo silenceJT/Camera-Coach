@@ -26,10 +26,20 @@ public struct FrameFeatures {
     public let faceCount: Int          // total number of detected faces
     public let groupHeadroomPercentage: Float? // % of frame height above topmost face
     public let primaryFaceIndex: Int?  // index of primary subject in allFaceRects (nil if no faces)
+
+    // MARK: - Face Orientation (Week 7)
+    public let faceOrientation: FaceOrientation? // detected orientation from bbox motion
+    public let orientationConfidence: Float      // 0.0-1.0 confidence in orientation detection
+
+    // MARK: - Edge Density Analysis (Week 7)
+    public let leftEdgeDensity: Float?    // Edge density on left side of face bbox (0-1)
+    public let rightEdgeDensity: Float?   // Edge density on right side of face bbox (0-1)
+    public let hasEdgeConflict: Bool      // True if face is too close to strong edges
     
     // MARK: - Composition
     public let headroomPercentage: Float?  // % of frame height above face (primary subject - LEGACY)
     public let thirdsOffsetPercentage: Float? // horizontal offset from rule of thirds (0 = perfect)
+    public let faceVerticalPosition: Float? // vertical center of face as % of frame height (0=bottom, 100=top)
 
     // MARK: - Template System (NEW)
     public let currentTemplate: Template?           // Currently active template
@@ -57,8 +67,14 @@ public struct FrameFeatures {
         faceCount: Int = 0,
         groupHeadroomPercentage: Float? = nil,
         primaryFaceIndex: Int? = nil,
+        faceOrientation: FaceOrientation? = nil,
+        orientationConfidence: Float = 0.0,
+        leftEdgeDensity: Float? = nil,
+        rightEdgeDensity: Float? = nil,
+        hasEdgeConflict: Bool = false,
         headroomPercentage: Float?,
         thirdsOffsetPercentage: Float?,
+        faceVerticalPosition: Float? = nil,
         currentTemplate: Template? = nil,
         templateAlignment: TemplateAlignment? = nil,
         recommendedTemplate: Template? = nil,
@@ -78,8 +94,14 @@ public struct FrameFeatures {
         self.faceCount = faceCount
         self.groupHeadroomPercentage = groupHeadroomPercentage
         self.primaryFaceIndex = primaryFaceIndex
+        self.faceOrientation = faceOrientation
+        self.orientationConfidence = orientationConfidence
+        self.leftEdgeDensity = leftEdgeDensity
+        self.rightEdgeDensity = rightEdgeDensity
+        self.hasEdgeConflict = hasEdgeConflict
         self.headroomPercentage = headroomPercentage
         self.thirdsOffsetPercentage = thirdsOffsetPercentage
+        self.faceVerticalPosition = faceVerticalPosition
         self.currentTemplate = currentTemplate
         self.templateAlignment = templateAlignment
         self.recommendedTemplate = recommendedTemplate
@@ -106,12 +128,42 @@ public struct FrameFeatures {
     
     public var isHeadroomInTarget: Bool {
         guard let headroom = headroomPercentage else { return false }
-        return Config.targetHeadroomPercentage.contains(headroom)
+
+        // 🎯 CRITICAL FIX: Use context-aware target based on vertical position
+        let targetRange: ClosedRange<Float>
+        if let verticalPos = faceVerticalPosition {
+            if verticalPos >= 66 {
+                targetRange = Config.upperThirdsHeadroomRange  // 0-8% for upper third
+            } else if verticalPos >= 33 {
+                targetRange = Config.centeredHeadroomRange  // 7-12% for centered
+            } else {
+                targetRange = Config.lowerThirdsHeadroomRange  // 15-25% for lower third
+            }
+        } else {
+            targetRange = Config.targetHeadroomPercentage  // Fallback
+        }
+
+        return targetRange.contains(headroom)
     }
-    
+
     public var isGroupHeadroomInTarget: Bool {
         guard let groupHeadroom = groupHeadroomPercentage else { return false }
-        return Config.targetHeadroomPercentage.contains(groupHeadroom)
+
+        // Group headroom uses same context-aware logic
+        let targetRange: ClosedRange<Float>
+        if let verticalPos = faceVerticalPosition {
+            if verticalPos >= 66 {
+                targetRange = Config.upperThirdsHeadroomRange
+            } else if verticalPos >= 33 {
+                targetRange = Config.centeredHeadroomRange
+            } else {
+                targetRange = Config.lowerThirdsHeadroomRange
+            }
+        } else {
+            targetRange = Config.targetHeadroomPercentage
+        }
+
+        return targetRange.contains(groupHeadroom)
     }
     
     public var hasMultipleFaces: Bool {
@@ -154,18 +206,59 @@ public struct FrameFeatures {
         guard hasActiveTemplate, let alignment = templateAlignment else { return false }
         return !alignment.withinThreshold && alignment.distance > Config.templateAlignmentThresholdPct
     }
-    
+
     // MARK: - Additional Computed Properties
     public var calculatedHeadroomPercentage: Float? {
         guard let faceSize = faceSizePercentage else { return nil }
         return 100.0 - faceSize
     }
-    
+
     public var calculatedThirdsOffset: Float? {
         guard let faceRect = faceRect else { return nil }
         let faceCenterX = faceRect.midX
         let offset = (faceCenterX - 0.5) * 100 // Convert to percentage
         return Float(offset)
+    }
+
+    // MARK: - Face Orientation Computed Properties (Week 7)
+    public var hasFacingDirection: Bool {
+        return faceOrientation != nil && orientationConfidence >= Config.minOrientationConfidence
+    }
+
+    public var leadSpacePercentage: Float? {
+        guard let orientation = faceOrientation,
+              let rect = faceRect,
+              orientationConfidence >= Config.minOrientationConfidence else {
+            return nil
+        }
+
+        // Calculate space in the facing direction
+        switch orientation {
+        case .left:
+            // Facing left - measure space to the left of face
+            return Float(rect.minX * 100.0)
+        case .right:
+            // Facing right - measure space to the right of face
+            return Float((1.0 - rect.maxX) * 100.0)
+        case .center:
+            // Facing center - no clear lead space preference
+            return nil
+        }
+    }
+}
+
+// MARK: - Face Orientation Enum (Week 7)
+public enum FaceOrientation: String, Codable {
+    case left      // Face is oriented/looking left
+    case right     // Face is oriented/looking right
+    case center    // Face is centered/forward (ambiguous)
+
+    public var description: String {
+        switch self {
+        case .left: return "facing_left"
+        case .right: return "facing_right"
+        case .center: return "facing_center"
+        }
     }
 }
 
@@ -183,6 +276,11 @@ extension FrameFeatures {
         faceCount: Int = 1,
         groupHeadroomPercentage: Float? = 10.0,
         primaryFaceIndex: Int? = 0,
+        faceOrientation: FaceOrientation? = nil,
+        orientationConfidence: Float = 0.0,
+        leftEdgeDensity: Float? = nil,
+        rightEdgeDensity: Float? = nil,
+        hasEdgeConflict: Bool = false,
         headroomPercentage: Float? = 10.0,
         thirdsOffsetPercentage: Float? = 0.0,
         currentTemplate: Template? = nil,
@@ -201,6 +299,11 @@ extension FrameFeatures {
             faceCount: faceCount,
             groupHeadroomPercentage: groupHeadroomPercentage,
             primaryFaceIndex: primaryFaceIndex,
+            faceOrientation: faceOrientation,
+            orientationConfidence: orientationConfidence,
+            leftEdgeDensity: leftEdgeDensity,
+            rightEdgeDensity: rightEdgeDensity,
+            hasEdgeConflict: hasEdgeConflict,
             headroomPercentage: headroomPercentage,
             thirdsOffsetPercentage: thirdsOffsetPercentage,
             currentTemplate: currentTemplate,

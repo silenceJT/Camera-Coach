@@ -201,6 +201,27 @@ public final class GuidanceEngine: ObservableObject {
             metrics["thirds_offset"] = String(format: "%.1f", thirdsOffset)
         }
 
+        // 🚀 WEEK 7: Face orientation & lead space metrics
+        if let orientation = features.faceOrientation {
+            metrics["face_orientation"] = orientation.description
+            metrics["orientation_confidence"] = String(format: "%.2f", features.orientationConfidence)
+        }
+
+        if let leadSpace = features.leadSpacePercentage {
+            metrics["lead_space_percent"] = String(format: "%.1f", leadSpace)
+        }
+
+        // 🚀 WEEK 7: Edge density metrics
+        if let leftEdge = features.leftEdgeDensity {
+            metrics["left_edge_density"] = String(format: "%.2f", leftEdge)
+        }
+
+        if let rightEdge = features.rightEdgeDensity {
+            metrics["right_edge_density"] = String(format: "%.2f", rightEdge)
+        }
+
+        metrics["has_edge_conflict"] = String(features.hasEdgeConflict)
+
         // 🚀 NEW: Template-related metrics
         metrics["has_active_template"] = String(features.hasActiveTemplate)
         metrics["template_aligned"] = String(features.isTemplateAligned)
@@ -228,7 +249,7 @@ public final class GuidanceEngine: ObservableObject {
         case .thirds:
             return evaluateThirdsAdoption(hint: hint, afterMetrics: afterMetrics)
         case .leadspace:
-            return false // Not implemented yet
+            return evaluateLeadSpaceAdoption(hint: hint, afterMetrics: afterMetrics)
         }
     }
     
@@ -307,7 +328,64 @@ public final class GuidanceEngine: ObservableObject {
     }
     
     private func evaluateThirdsAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
-        // TODO: Implement when thirds guidance is added
+        // TODO: Implement thirds adoption tracking
+        return false
+    }
+
+    // 🚀 WEEK 7: Lead Space Adoption Evaluation
+    private func evaluateLeadSpaceAdoption(hint: ActiveHint, afterMetrics: [String: String]) -> Bool {
+        guard let currentFeatures = currentFrameFeatures,
+              let leadSpace = currentFeatures.leadSpacePercentage,
+              let orientation = currentFeatures.faceOrientation else {
+            return false
+        }
+
+        // Extract before metrics
+        let beforeLeadSpaceStr = hint.beforeMetrics["lead_space_percent"]
+        let beforeOrientation = hint.beforeMetrics["face_orientation"]
+
+        // Calculate improvement
+        let targetCenter = (Config.leadSpaceTargetPercentage.upperBound + Config.leadSpaceTargetPercentage.lowerBound) / 2.0
+
+        // Check if orientation is still the same (subject hasn't turned)
+        guard beforeOrientation == orientation.description else {
+            // Orientation changed - can't evaluate properly
+            return false
+        }
+
+        if let beforeLeadSpaceStr = beforeLeadSpaceStr,
+           let beforeLeadSpace = Float(beforeLeadSpaceStr) {
+            // Calculate distances from target
+            let beforeDistance = abs(beforeLeadSpace - targetCenter)
+            let afterDistance = abs(leadSpace - targetCenter)
+
+            // Adoption criteria:
+            // 1. Movement towards target (distance reduced)
+            // 2. Significant improvement (≥5% lead space improvement)
+            // 3. Now within target range
+
+            let distanceImprovement = beforeDistance - afterDistance
+            let improvementThreshold: Float = 5.0 // 5% lead space improvement
+
+            // Check if lead space improved significantly
+            if distanceImprovement >= improvementThreshold {
+                print("✅ Lead space adopted: improvement=\(distanceImprovement)%")
+                return true
+            }
+
+            // Check if now within target range (even with small improvement)
+            if Config.leadSpaceTargetPercentage.contains(leadSpace) && !Config.leadSpaceTargetPercentage.contains(beforeLeadSpace) {
+                print("✅ Lead space adopted: now in target range")
+                return true
+            }
+
+            // Check for substantial movement in correct direction (≥50% improvement)
+            if distanceImprovement > 0 && (distanceImprovement / beforeDistance) >= 0.5 {
+                print("✅ Lead space adopted: 50%+ improvement")
+                return true
+            }
+        }
+
         return false
     }
 
@@ -384,8 +462,8 @@ public final class GuidanceEngine: ObservableObject {
     }
     
     private func analyzeFrameAndGenerateGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
-        // 🚀 NEW PRIORITY ORDER: Template Alignment > Headroom > Thirds
-        // Template-based guidance has highest priority when active template exists
+        // 🚀 WEEK 7 PRIORITY ORDER: Template > Headroom > Lead Space > Thirds
+        // Lead space guidance added between headroom and thirds per Week 7 spec
 
         print("🔍 GUIDANCE CHECK: hasActiveTemplate=\(features.hasActiveTemplate), needsTemplateAlignment=\(features.needsTemplateAlignment)")
 
@@ -405,11 +483,25 @@ public final class GuidanceEngine: ObservableObject {
             print("⏸️ Skipping headroom - template alignment needed (distance: \(features.templateAlignment?.distance ?? 0))")
         }
 
-        // 3. Rule of thirds (only if headroom is good and no template issues)
+        // 3. Lead space guidance (Week 7 - only if headroom is good and no template issues)
+        if features.isHeadroomInTarget && !features.needsTemplateAlignment {
+            if let leadSpaceAdvice = generateLeadSpaceGuidance(features) {
+                print("✅ Returning LEAD SPACE guidance")
+                return leadSpaceAdvice
+            }
+        }
+
+        // 4. Rule of thirds (only if headroom is good, no template issues, and lead space is adequate)
         if features.isHeadroomInTarget && !features.needsTemplateAlignment {
             if let thirdsAdvice = generateThirdsGuidance(features) {
                 return thirdsAdvice
             }
+        }
+
+        // 🚀 WEEK 7: Check for PERFECT composition (all rules satisfied)
+        if isPerfectComposition(features) {
+            print("✨ PERFECT COMPOSITION DETECTED!")
+            return createPerfectCompositionAdvice()
         }
 
         // Clear currentGuidance when no new guidance is generated
@@ -420,6 +512,64 @@ public final class GuidanceEngine: ObservableObject {
         }
 
         return nil
+    }
+
+    // MARK: - Perfect Composition Detection (Week 7)
+
+    /// Check if current composition is perfect (all rules satisfied)
+    private func isPerfectComposition(_ features: FrameFeatures) -> Bool {
+        // Must have a stable face
+        guard features.hasStableFace else { return false }
+
+        // Headroom must be in target range
+        guard features.isHeadroomInTarget else { return false }
+
+        // If there's an active template, alignment must be perfect
+        if features.hasActiveTemplate {
+            guard let alignment = features.templateAlignment,
+                  alignment.distance < Config.perfectAlignmentThreshold else {
+                return false
+            }
+        }
+
+        // Lead space must be adequate (if facing direction detected)
+        if features.hasFacingDirection,
+           let leadSpace = features.leadSpacePercentage {
+            let targetRange = Config.leadSpaceTargetPercentage
+            let tolerance = Config.leadSpaceTolerancePercentage
+            let expandedMin = targetRange.lowerBound - tolerance
+            let expandedMax = targetRange.upperBound + tolerance
+
+            guard leadSpace >= expandedMin && leadSpace <= expandedMax else {
+                return false
+            }
+        }
+
+        // Rule of thirds must be satisfied (face centered or on thirds line)
+        if let offset = features.thirdsOffsetPercentage {
+            let tolerance = Config.thirdsTolerancePercentage
+            let isCentered = abs(offset) < tolerance
+            let isOnThirdsLine = abs(abs(offset) - 33.33) < tolerance
+
+            guard isCentered || isOnThirdsLine else {
+                return false
+            }
+        }
+
+        // All checks passed - composition is perfect!
+        return true
+    }
+
+    /// Create perfect composition advice
+    private func createPerfectCompositionAdvice() -> GuidanceAdvice {
+        return GuidanceAdvice(
+            action: .perfect,
+            type: .headroom,  // Use headroom type for logging
+            reason: NSLocalizedString("guidance.ready_to_shoot", comment: "Tap to shoot"),
+            confidence: 0.95,  // High confidence for perfect state
+            cooldownMs: 0,  // No cooldown - persist while perfect
+            ruleVersion: "1.0"
+        )
     }
     
     // 🚀 MULTI-FACE ENHANCEMENT: Adaptive Headroom Guidance
@@ -458,26 +608,65 @@ public final class GuidanceEngine: ObservableObject {
             return nil
         }
         
-        // Calculate how far we are from the target headroom range
-        let targetCenter = (Config.targetHeadroomPercentage.upperBound + Config.targetHeadroomPercentage.lowerBound) / 2.0
-        let difference = targetCenter - selectedHeadroom
-        
-        // Only provide guidance if significantly outside target range
-        guard abs(difference) > Config.headroomTolerancePercentage else {
-            print("📏 Headroom within tolerance: diff=\(difference)%, tolerance=\(Config.headroomTolerancePercentage)%")
+        // 🎯 CRITICAL FIX: Use context-aware headroom target based on vertical position
+        let targetRange: ClosedRange<Float>
+        let verticalZone: String
+
+        if let verticalPos = features.faceVerticalPosition {
+            if verticalPos >= 66 {
+                // Upper third: Face is high in frame (66-100% height)
+                targetRange = Config.upperThirdsHeadroomRange  // 0-8%
+                verticalZone = "upper-third"
+            } else if verticalPos >= 33 {
+                // Middle third: Face is centered (33-66% height)
+                targetRange = Config.centeredHeadroomRange  // 7-12%
+                verticalZone = "centered"
+            } else {
+                // Lower third: Face is low in frame (0-33% height)
+                targetRange = Config.lowerThirdsHeadroomRange  // 15-25%
+                verticalZone = "lower-third"
+            }
+            print("📍 Face vertical position: \(String(format: "%.1f", verticalPos))% → Zone: \(verticalZone), Target range: \(targetRange)")
+        } else {
+            // Fallback to centered range if no vertical position available
+            targetRange = Config.centeredHeadroomRange
+            verticalZone = "unknown (fallback)"
+        }
+
+        // Check if headroom is within target range first
+        if targetRange.contains(selectedHeadroom) {
+            print("✅ Headroom IN range: headroom=\(selectedHeadroom)%, target=\(targetRange), zone=\(verticalZone)")
             return nil
         }
+
+        // Calculate how far we are OUTSIDE the target range
+        let difference: Float
+        if selectedHeadroom < targetRange.lowerBound {
+            // Too little headroom - difference is distance below lower bound
+            difference = targetRange.lowerBound - selectedHeadroom
+        } else {
+            // Too much headroom - difference is distance above upper bound
+            difference = selectedHeadroom - targetRange.upperBound
+        }
+
+        // Apply tolerance - only trigger if significantly outside range
+        guard difference > Config.headroomTolerancePercentage else {
+            print("📏 Headroom outside range but within tolerance: headroom=\(selectedHeadroom)%, target=\(targetRange), diff=\(difference)%, tolerance=\(Config.headroomTolerancePercentage)%")
+            return nil
+        }
+
+        print("⚠️ Headroom OUT of range: headroom=\(selectedHeadroom)%, target=\(targetRange), diff=\(difference)%, zone=\(verticalZone)")
         
         // Determine action and confidence based on how far off we are
         let action: GuidanceAction
         let reason: String
         let confidence: Float
-        
-        if difference > 0 {
-            // Need more headroom - face(s) too low, move up
-            let adjustmentAmount = naturalLanguageAmount(for: abs(difference))
+
+        if selectedHeadroom < targetRange.lowerBound {
+            // Not enough headroom - face(s) too low in frame, need to move camera UP
+            let adjustmentAmount = naturalLanguageAmount(for: difference)
             action = .moveUp(amount: adjustmentAmount)
-            
+
             // Adaptive reason based on strategy
             switch strategy {
             case .groupHeadroom:
@@ -485,29 +674,29 @@ public final class GuidanceEngine: ObservableObject {
             case .primarySubject:
                 reason = NSLocalizedString("guidance.reason.better_headroom", comment: "Better headroom")
             }
-            
+
             // Higher confidence for larger adjustments needed
-            var baseConfidence = 0.7 + Float(abs(difference)) / 10.0
+            var baseConfidence = 0.7 + Float(difference) / 10.0
             // Apply group headroom confidence boost if using group strategy
             if case .groupHeadroom = strategy {
                 baseConfidence += Config.groupHeadroomConfidenceBoost
             }
             confidence = min(0.95, baseConfidence)
         } else {
-            // Too much headroom - face(s) too high, move down
-            let adjustmentAmount = naturalLanguageAmount(for: abs(difference))
+            // Too much headroom - face(s) too high in frame, need to move camera DOWN
+            let adjustmentAmount = naturalLanguageAmount(for: difference)
             action = .moveDown(amount: adjustmentAmount)
             
-            // Adaptive reason based on strategy  
+            // Adaptive reason based on strategy
             switch strategy {
             case .groupHeadroom:
                 reason = NSLocalizedString("guidance.reason.group_framing", comment: "Better framing for group")
             case .primarySubject:
                 reason = NSLocalizedString("guidance.reason.better_framing", comment: "Better framing")
             }
-            
+
             // Slightly lower confidence for "too much headroom" cases
-            var baseConfidence = 0.65 + Float(abs(difference)) / 12.0
+            var baseConfidence = 0.65 + Float(difference) / 12.0
             // Apply group headroom confidence boost if using group strategy
             if case .groupHeadroom = strategy {
                 baseConfidence += Config.groupHeadroomConfidenceBoost
@@ -566,15 +755,94 @@ public final class GuidanceEngine: ObservableObject {
     
     // Horizon guidance removed - users handle camera leveling by common sense
     
+    // 🚀 WEEK 7: Lead Space Guidance
+    private func generateLeadSpaceGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
+        // Only provide guidance if we have orientation detection
+        guard features.hasFacingDirection,
+              let orientation = features.faceOrientation,
+              let leadSpace = features.leadSpacePercentage,
+              features.hasStableFace else {
+            return nil
+        }
+
+        // Check type-specific cooldown
+        if let lastTime = typeCooldowns[.leadspace],
+           Date().timeIntervalSince(lastTime) < Double(Config.leadSpaceCooldownMs) / 1000.0 {
+            return nil
+        }
+
+        // Calculate target lead space center
+        let targetCenter = (Config.leadSpaceTargetPercentage.upperBound + Config.leadSpaceTargetPercentage.lowerBound) / 2.0
+        let difference = targetCenter - leadSpace
+
+        // Only provide guidance if significantly outside target range
+        guard abs(difference) > Config.leadSpaceTolerancePercentage else {
+            return nil
+        }
+
+        // Determine action based on facing direction and current lead space
+        let action: GuidanceAction
+        let reason: String
+        let confidence: Float
+
+        switch orientation {
+        case .left:
+            // Facing left - needs more space on left side
+            if difference > 0 {
+                // Need more lead space - move right to add space on left
+                action = .moveRight(amount: naturalLanguageAmount(for: abs(difference)))
+                reason = NSLocalizedString("guidance.reason.lead_space", comment: "Room ahead")
+                confidence = 0.75 + min(0.15, Float(abs(difference)) / 100.0)
+            } else {
+                // Too much lead space - move left to reduce space
+                action = .moveLeft(amount: naturalLanguageAmount(for: abs(difference)))
+                reason = NSLocalizedString("guidance.reason.center_subject", comment: "Center subject")
+                confidence = 0.7 + min(0.15, Float(abs(difference)) / 100.0)
+            }
+
+        case .right:
+            // Facing right - needs more space on right side
+            if difference > 0 {
+                // Need more lead space - move left to add space on right
+                action = .moveLeft(amount: naturalLanguageAmount(for: abs(difference)))
+                reason = NSLocalizedString("guidance.reason.lead_space", comment: "Room ahead")
+                confidence = 0.75 + min(0.15, Float(abs(difference)) / 100.0)
+            } else {
+                // Too much lead space - move right to reduce space
+                action = .moveRight(amount: naturalLanguageAmount(for: abs(difference)))
+                reason = NSLocalizedString("guidance.reason.center_subject", comment: "Center subject")
+                confidence = 0.7 + min(0.15, Float(abs(difference)) / 100.0)
+            }
+
+        case .center:
+            // Face is centered - no lead space guidance needed
+            return nil
+        }
+
+        // Boost confidence based on orientation confidence
+        let finalConfidence = min(0.95, confidence * features.orientationConfidence)
+
+        print("🎯 LEAD SPACE GUIDANCE: \(orientation.description), leadSpace=\(leadSpace)%, target=\(targetCenter)%, diff=\(difference)%")
+
+        return GuidanceAdvice(
+            action: action,
+            type: .leadspace,
+            reason: reason,
+            confidence: finalConfidence,
+            cooldownMs: Config.leadSpaceCooldownMs,
+            ruleVersion: "leadspace_v1.0"
+        )
+    }
+
     private func generateThirdsGuidance(_ features: FrameFeatures) -> GuidanceAdvice? {
         guard let thirdsOffset = features.thirdsOffsetPercentage,
               features.hasStableFace else { return nil }
-        
+
         // Only suggest thirds guidance if offset is significant
         if abs(thirdsOffset) > Config.thirdsTolerancePercentage {
             let action: GuidanceAction
             let reason: String
-            
+
             if thirdsOffset > 0 {
                 // Subject is too far right - move left
                 let adjustmentAmount = naturalLanguageAmount(for: abs(thirdsOffset))
@@ -586,7 +854,7 @@ public final class GuidanceEngine: ObservableObject {
                 action = .moveRight(amount: adjustmentAmount)
                 reason = "Better composition"
             }
-            
+
             return GuidanceAdvice(
                 action: action,
                 type: .thirds,
@@ -595,7 +863,7 @@ public final class GuidanceEngine: ObservableObject {
                 cooldownMs: Config.ruleCooldownMs
             )
         }
-        
+
         return nil
     }
 

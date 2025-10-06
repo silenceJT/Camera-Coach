@@ -47,7 +47,7 @@ public final class CameraViewController: UIViewController {
     // MARK: - Properties
     public var coordinator: CameraCoordinator?
     public var onPhotoTaken: (() -> Void)?
-    
+
     private let hudView = GuidanceHUDView()
     private let cameraView = UIView()
 
@@ -59,6 +59,11 @@ public final class CameraViewController: UIViewController {
     // Template selection state
     private var selectedTemplateID: String?
     private var selectedCategory: TemplateCategory?
+
+    // 🚀 WEEK 7: Perfect composition feedback
+    private let shutterButton = ShutterButton(type: .system)
+    private var wasCompositionPerfect = false  // Track previous state for edge detection
+    private var lastPerfectExitTime: Date?  // Track when we last exited perfect range (for debouncing)
 
     // 🚀 WEEK 3: Debug view to visualize face detection
     private let debugView = FaceDetectionDebugView()
@@ -177,12 +182,7 @@ public final class CameraViewController: UIViewController {
         // 🚀 CRITICAL FIX: Connect HUD to coordinator for horizon updates
         coordinator?.setHUDView(hudView)
 
-        // Setup shutter button
-        let shutterButton = UIButton(type: .system)
-        shutterButton.backgroundColor = .white
-        shutterButton.layer.cornerRadius = 35
-        shutterButton.layer.borderWidth = 4
-        shutterButton.layer.borderColor = UIColor.white.cgColor
+        // 🚀 WEEK 7: Setup custom shutter button with perfect composition glow
         shutterButton.addTarget(self, action: #selector(shutterButtonTapped), for: .touchUpInside)
         shutterButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(shutterButton)
@@ -203,11 +203,61 @@ public final class CameraViewController: UIViewController {
         coordinator?.$currentGuidance
             .receive(on: DispatchQueue.main)
             .sink { [weak self] guidance in
+                guard let self = self else { return }
+
                 if let guidance = guidance {
-                    self?.hudView.showGuidance(guidance)
+                    self.hudView.showGuidance(guidance)
+                    // Note: Green ring state managed by separate composition tracker below
                 } else {
-                    self?.hudView.hideGuidance()
+                    self.hudView.hideGuidance()
                 }
+            }
+            .store(in: &cancellables)
+
+        // 🚀 WEEK 7 FIX: Continuous perfect composition tracking for persistent green ring
+        // Monitor composition state directly instead of relying on guidance (which has cooldowns)
+        coordinator?.$currentFrameFeatures
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] features in
+                guard let self = self, let features = features else { return }
+
+                // Check if composition is perfect (headroom in range + stable face)
+                let isCompositionPerfect = features.hasStableFace && features.isHeadroomInTarget
+
+                // 🎯 EDGE DETECTION with DEBOUNCING to prevent rapid flickering haptics
+                if isCompositionPerfect && !self.wasCompositionPerfect {
+                    // Rising edge: Just became perfect
+
+                    // Check if we've been out of range for a meaningful duration
+                    let shouldTriggerHaptic: Bool
+                    if let exitTime = self.lastPerfectExitTime {
+                        let timeSinceExit = Date().timeIntervalSince(exitTime)
+                        // Only haptic if we've been out for 500ms+ (prevents flicker haptics)
+                        shouldTriggerHaptic = timeSinceExit > 0.5
+                    } else {
+                        // First time entering perfect range (no previous exit)
+                        shouldTriggerHaptic = true
+                    }
+
+                    // Show green ring with conditional haptic
+                    self.shutterButton.showPerfectGlow(withHaptic: shouldTriggerHaptic)
+
+                    if shouldTriggerHaptic {
+                        print("✨ ENTERED perfect composition range - haptic triggered")
+                    } else {
+                        print("✨ ENTERED perfect composition range - haptic SUPPRESSED (debounced <500ms)")
+                    }
+
+                } else if !isCompositionPerfect && self.wasCompositionPerfect {
+                    // Falling edge: No longer perfect → Hide glow and record exit time
+                    self.shutterButton.hidePerfectGlow()
+                    self.lastPerfectExitTime = Date()
+                    print("⚠️ EXITED perfect composition range")
+                }
+                // else: State unchanged, do nothing (green ring stays as-is, no haptic)
+
+                // Update state for next frame
+                self.wasCompositionPerfect = isCompositionPerfect
             }
             .store(in: &cancellables)
         

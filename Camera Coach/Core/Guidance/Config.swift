@@ -38,9 +38,29 @@ enum Config {
     static let visualHorizonLowPassAlpha: Float = 0.1  // Heavy smoothing for visual display (vs 0.3 for guidance logic)
     static let visualUpdateThresholdDegrees: Float = 0.5  // Only update visual if change > 0.5°
     
-    // MARK: - Headroom Detection (Relaxed for letterbox camera view)
-    static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0  // Ideal headroom range per design spec
-    static let headroomTolerancePercentage: Float = 2.0  // Percentage tolerance before triggering guidance (was incorrectly named "Degrees")
+    // MARK: - Headroom Detection (Context-aware for composition position)
+    // 🎯 CONTEXT-AWARE HEADROOM: Targets based on vertical position in VISIBLE preview
+    // IMPORTANT: Vertical position 0%=bottom, 100%=top (Vision Y-axis points UP)
+    //
+    // 📸 PHOTOGRAPHER-FRIENDLY RANGES (Week 7 Update):
+    // Based on professional portrait standards and rule of thirds (eyes at 1/3 from top)
+    // Research: Standard portraits have 15-30% headroom, tight headshots 5-15%, half-length 20-35%
+
+    // Upper third position (face at 66-100% from bottom = near TOP): Tight headshot style
+    // Minimal breathing room - common for close-up portraits
+    static let upperThirdsHeadroomRange: ClosedRange<Float> = 5.0...20.0  // Was 0-8, now more flexible
+
+    // Centered position (face at 33-66% from bottom = MIDDLE): Standard portrait framing
+    // Follows rule of thirds - eyes at ~1/3 from top creates natural headroom
+    static let centeredHeadroomRange: ClosedRange<Float> = 15.0...35.0  // Was 7-12, now matches pro standards
+
+    // Lower third position (face at 0-33% from bottom = near BOTTOM): Environmental/full-length
+    // Lots of space above - common for showing environment or full body
+    static let lowerThirdsHeadroomRange: ClosedRange<Float> = 35.0...55.0  // Was 35-50, expanded upper bound
+
+    // Legacy (for backward compatibility - use centered range)
+    static let targetHeadroomPercentage: ClosedRange<Float> = 7.0...12.0
+    static let headroomTolerancePercentage: Float = 3.0  // Increased tolerance for better UX
     
     // 🚀 WEEK 3: Enhanced Headroom Configuration
     static let maxHeadroomAdjustmentDegrees: Int = 8  // Cap tilt adjustments
@@ -48,6 +68,20 @@ enum Config {
     
     // MARK: - Rule of Thirds
     static let thirdsTolerancePercentage: Float = 15.0
+
+    // MARK: - Face Orientation & Lead Space (Week 7)
+    static let minOrientationConfidence: Float = 0.6           // Min confidence to trust orientation
+    static let orientationHistorySize: Int = 10                // Frames to track for orientation detection
+    static let orientationStabilityThreshold: Float = 0.7      // Ratio of consistent frames needed
+    static let leadSpaceTargetPercentage: ClosedRange<Float> = 20.0...40.0  // Ideal lead space range
+    static let leadSpaceTolerancePercentage: Float = 10.0      // Tolerance before triggering guidance
+    static let leadSpaceCooldownMs: Int = 800                  // Cooldown for lead space guidance
+
+    // MARK: - Edge Density Detection (Week 7)
+    static let edgeDensitySampleWidth: CGFloat = 30            // Width of edge sampling region (pixels)
+    static let edgeDensityThreshold: Float = 0.3               // Edge density threshold for conflict (0-1)
+    static let edgeGuidanceEnabled: Bool = true                // Enable edge-aware guidance
+    static let edgeAvoidanceBoost: Float = 0.1                 // Confidence boost when avoiding edges
     
     // MARK: - Face Detection
     static let minFaceSizePercentage: Float = 1.0  // 🚀 Reduced from 2% to 1% for far-distance detection

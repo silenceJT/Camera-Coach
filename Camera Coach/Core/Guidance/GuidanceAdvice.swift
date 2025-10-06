@@ -20,6 +20,9 @@ public enum GuidanceAction {
     case switchTemplate(to: Template)                          // Recommend different template
     case adjustForTemplate(direction: String, amount: String)  // "Move up 2cm to match silhouette"
 
+    // Perfect composition state (NEW - Week 7 UX)
+    case perfect                                                // Composition is perfect, ready to shoot!
+
     var displayText: String {
         switch self {
         case .moveUp(_):
@@ -52,7 +55,18 @@ public enum GuidanceAction {
             return String.localizedStringWithFormat(NSLocalizedString("guidance.switch_template", comment: "Try template: %@"), template.description)
         case .adjustForTemplate(let direction, let amount):
             return String.localizedStringWithFormat(NSLocalizedString("guidance.adjust_for_template", comment: "Move %@ %@ to match silhouette"), direction, amount)
+        case .perfect:
+            // Perfect composition - show success message
+            return NSLocalizedString("guidance.perfect_composition", comment: "Perfect composition!")
         }
+    }
+
+    // NEW: Check if this is a perfect composition state
+    var isPerfect: Bool {
+        if case .perfect = self {
+            return true
+        }
+        return false
     }
 }
 
@@ -109,8 +123,15 @@ public struct GuidanceAdvice {
     
     // MARK: - Computed Properties
     public var displayText: String {
-        // Format: "Action. Reason." (e.g., "Tilt up 5°. Better headroom.")
-        return "\(action.displayText). \(reason)"
+        // Special case: Perfect composition shows full message
+        if action.isPerfect {
+            let perfect = NSLocalizedString("guidance.perfect_composition", comment: "Perfect!")
+            let tapToShoot = NSLocalizedString("guidance.ready_to_shoot", comment: "Tap to shoot")
+            return "\(perfect) \(tapToShoot)"
+        }
+
+        // Format: "Action, Reason" (e.g., "Tilt up, Better headroom")
+        return "\(action.displayText), \(reason)"
     }
     
     public var wordCount: Int {
