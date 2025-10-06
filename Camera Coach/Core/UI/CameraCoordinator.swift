@@ -9,6 +9,7 @@
 import Foundation
 import AVFoundation
 import UIKit
+import Combine
 
 public final class CameraCoordinator: NSObject, FrameFeaturesProvider, ObservableObject {
     // MARK: - Properties
@@ -23,6 +24,9 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     @Published var isGuidanceActive = false
     @Published var currentFrameFeatures: FrameFeatures?
     @Published var enhancedFaceResult: EnhancedFaceResult?
+
+    // MARK: - Perfect Composition State (Week 7 - green ring sync)
+    @Published var isPerfectComposition: Bool = false
     
     // MARK: - Performance Monitoring
     private var lastGuidanceTime: Date = Date.distantPast
@@ -38,16 +42,24 @@ public final class CameraCoordinator: NSObject, FrameFeaturesProvider, Observabl
     private var sessionStartTime: Date = Date()
     private var sessionId: String = UUID().uuidString
     private var consecutivePhotos: Int = 0
-    
+
+    // MARK: - Combine Cancellables
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Initialization
     public override init() {
         super.init()
-        
+
         // Initialize guidance engine after super.init
         self.guidanceEngine = GuidanceEngine(provider: self)
-        
+
         // Set up camera controller delegate
         cameraController.delegate = self
+
+        // 🚀 WEEK 7: Subscribe to perfect composition state from guidance engine
+        guidanceEngine.$isPerfectCompositionActive
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isPerfectComposition)
     }
     
     // MARK: - Public Interface

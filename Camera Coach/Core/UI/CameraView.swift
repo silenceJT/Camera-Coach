@@ -214,15 +214,12 @@ public final class CameraViewController: UIViewController {
             }
             .store(in: &cancellables)
 
-        // 🚀 WEEK 7 FIX: Continuous perfect composition tracking for persistent green ring
-        // Monitor composition state directly instead of relying on guidance (which has cooldowns)
-        coordinator?.$currentFrameFeatures
+        // 🚀 WEEK 7 FIX: Perfect composition tracking using GuidanceEngine's logic (synchronized with "Perfect" hint)
+        // This ensures green ring only glows when ALL composition checks pass (same as "Perfect" guidance)
+        coordinator?.$isPerfectComposition
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] features in
-                guard let self = self, let features = features else { return }
-
-                // Check if composition is perfect (headroom in range + stable face)
-                let isCompositionPerfect = features.hasStableFace && features.isHeadroomInTarget
+            .sink { [weak self] isCompositionPerfect in
+                guard let self = self else { return }
 
                 // 🎯 EDGE DETECTION with DEBOUNCING to prevent rapid flickering haptics
                 if isCompositionPerfect && !self.wasCompositionPerfect {

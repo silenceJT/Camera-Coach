@@ -26,8 +26,8 @@
 // User is the photographer holding the phone, NOT the subject!
 "guidance.move_up" = "Move up";
 "guidance.move_down" = "Move down";
-"guidance.move_left" = "Pan left";
-"guidance.move_right" = "Pan right";
+"guidance.move_left" = "Move camera left";
+"guidance.move_right" = "Move camera right";
 
 // Natural Language Amounts (Not used with new format)
 "guidance.amount.tiny" = "slightly";
@@ -44,7 +44,7 @@
 "guidance.reason.group_headroom" = "Everyone fits";
 "guidance.reason.group_framing" = "Better group shot";
 "guidance.reason.template_alignment" = "Match the guide";
-"guidance.reason.lead_space" = "Room ahead";
+"guidance.reason.lead_space" = "Give space to look into";
 "guidance.reason.center_subject" = "Better balance";
 "guidance.reason.fine_alignment" = "Almost there";
 

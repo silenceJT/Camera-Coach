@@ -67,11 +67,11 @@ public final class ShutterButton: UIButton {
         guard !isGlowing else { return }
         isGlowing = true
 
-        // Fade in glow layer
+        // Fade in glow layer (smooth transition from Config)
         let fadeIn = CABasicAnimation(keyPath: "opacity")
         fadeIn.fromValue = 0.0
         fadeIn.toValue = 0.6
-        fadeIn.duration = 0.2
+        fadeIn.duration = Config.glowFadeInDuration
         fadeIn.timingFunction = CAMediaTimingFunction(name: .easeOut)
         fadeIn.fillMode = .forwards
         fadeIn.isRemovedOnCompletion = false
@@ -121,11 +121,11 @@ public final class ShutterButton: UIButton {
         // Remove ongoing animations
         glowLayer.removeAnimation(forKey: "perfectGlow")
 
-        // Fade out
+        // Fade out (smooth transition from Config)
         let fadeOut = CABasicAnimation(keyPath: "opacity")
         fadeOut.fromValue = glowLayer.presentation()?.opacity ?? 0.6
         fadeOut.toValue = 0.0
-        fadeOut.duration = 0.3
+        fadeOut.duration = Config.glowFadeOutDuration
         fadeOut.timingFunction = CAMediaTimingFunction(name: .easeIn)
         fadeOut.fillMode = .forwards
         fadeOut.isRemovedOnCompletion = false
@@ -133,7 +133,7 @@ public final class ShutterButton: UIButton {
         glowLayer.add(fadeOut, forKey: "fadeOut")
 
         // Reset after animation completes
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + Config.glowFadeOutDuration) {
             self.glowLayer.removeAllAnimations()
             self.glowLayer.opacity = 0
         }

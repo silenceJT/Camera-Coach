@@ -49,9 +49,31 @@ public final class GuidanceEngine: ObservableObject {
     
     // MARK: - Current State
     public private(set) var currentGuidance: GuidanceAdvice?
-    
+
     // MARK: - Frame Features (set by CameraCoordinator)
-    public var currentFrameFeatures: FrameFeatures?
+    public var currentFrameFeatures: FrameFeatures? {
+        didSet {
+            // Update perfect composition state with time-based persistence
+            if let features = currentFrameFeatures {
+                let rawPerfectState = isPerfectComposition(features)
+
+                // 🚀 WEEK 7: Apply time-based persistence to prevent flickering
+                applyPersistenceGate(newState: rawPerfectState)
+            } else {
+                isPerfectCompositionActive = false
+            }
+        }
+    }
+
+    // MARK: - Perfect Composition State (Published for green ring sync)
+    @Published public private(set) var isPerfectCompositionActive: Bool = false
+
+    // MARK: - Hysteresis State Tracking (Week 7 - Schmitt Trigger Pattern)
+    private var wasInPerfectState: Bool = false  // Track previous state for hysteresis
+
+    // MARK: - Time-based Persistence (Week 7 - Prevent Rapid Flickering)
+    private var lastPerfectStateChange: Date?    // When state last changed
+    private var pendingPerfectState: Bool?       // Pending state waiting for persistence duration
     
     // MARK: - Hint Adoption Tracking
     private var activeHint: ActiveHint?
@@ -517,46 +539,91 @@ public final class GuidanceEngine: ObservableObject {
     // MARK: - Perfect Composition Detection (Week 7)
 
     /// Check if current composition is perfect (all rules satisfied)
+    /// Uses hysteresis (Schmitt trigger pattern) to prevent flickering:
+    /// - Stricter thresholds when entering perfect state
+    /// - Looser thresholds when exiting perfect state
     private func isPerfectComposition(_ features: FrameFeatures) -> Bool {
         // Must have a stable face
-        guard features.hasStableFace else { return false }
+        guard features.hasStableFace else {
+            wasInPerfectState = false
+            return false
+        }
 
-        // Headroom must be in target range
-        guard features.isHeadroomInTarget else { return false }
+        // 🚀 WEEK 7: Hysteresis-based headroom check
+        // Use different ranges for entering vs exiting perfect state
+        let headroomOK: Bool
+        if let headroom = features.headroomPercentage {
+            // Determine which range to use based on vertical position
+            let (enterRange, exitRange): (ClosedRange<Float>, ClosedRange<Float>)
+
+            if let verticalPos = features.faceVerticalPosition {
+                if verticalPos >= 66.0 {
+                    // Upper third
+                    enterRange = Config.upperThirdsHeadroomRange
+                    exitRange = Config.upperThirdsHeadroomExitRange
+                } else if verticalPos >= 33.0 {
+                    // Centered
+                    enterRange = Config.centeredHeadroomRange
+                    exitRange = Config.centeredHeadroomExitRange
+                } else {
+                    // Lower third
+                    enterRange = Config.lowerThirdsHeadroomRange
+                    exitRange = Config.lowerThirdsHeadroomExitRange
+                }
+            } else {
+                // Fallback to centered if vertical position unknown
+                enterRange = Config.centeredHeadroomRange
+                exitRange = Config.centeredHeadroomExitRange
+            }
+
+            // Apply hysteresis: use wider exit range if currently in perfect state
+            let rangeToUse = wasInPerfectState ? exitRange : enterRange
+            headroomOK = rangeToUse.contains(headroom)
+        } else {
+            headroomOK = false
+        }
+
+        guard headroomOK else {
+            wasInPerfectState = false
+            return false
+        }
 
         // If there's an active template, alignment must be perfect
         if features.hasActiveTemplate {
             guard let alignment = features.templateAlignment,
                   alignment.distance < Config.perfectAlignmentThreshold else {
+                wasInPerfectState = false
                 return false
             }
         }
 
-        // Lead space must be adequate (if facing direction detected)
+        // 🚀 WEEK 7: Hysteresis-based lead space check
         if features.hasFacingDirection,
            let leadSpace = features.leadSpacePercentage {
-            let targetRange = Config.leadSpaceTargetPercentage
-            let tolerance = Config.leadSpaceTolerancePercentage
-            let expandedMin = targetRange.lowerBound - tolerance
-            let expandedMax = targetRange.upperBound + tolerance
+            // Use different ranges for entering vs exiting
+            let rangeToUse = wasInPerfectState ? Config.leadSpaceExitRange : Config.leadSpaceTargetPercentage
 
-            guard leadSpace >= expandedMin && leadSpace <= expandedMax else {
+            guard rangeToUse.contains(leadSpace) else {
+                wasInPerfectState = false
                 return false
             }
         }
 
-        // Rule of thirds must be satisfied (face centered or on thirds line)
+        // 🚀 WEEK 7: Hysteresis-based rule of thirds check
         if let offset = features.thirdsOffsetPercentage {
-            let tolerance = Config.thirdsTolerancePercentage
+            // Use different tolerances for entering vs exiting
+            let tolerance = wasInPerfectState ? Config.thirdsExitTolerancePercentage : Config.thirdsTolerancePercentage
             let isCentered = abs(offset) < tolerance
             let isOnThirdsLine = abs(abs(offset) - 33.33) < tolerance
 
             guard isCentered || isOnThirdsLine else {
+                wasInPerfectState = false
                 return false
             }
         }
 
         // All checks passed - composition is perfect!
+        wasInPerfectState = true
         return true
     }
 
@@ -570,6 +637,58 @@ public final class GuidanceEngine: ObservableObject {
             cooldownMs: 0,  // No cooldown - persist while perfect
             ruleVersion: "1.0"
         )
+    }
+
+    // MARK: - Time-based Persistence Gate (Week 7 - Professional Debouncing)
+
+    /// Apply time-based persistence to prevent rapid state flickering
+    /// State must persist for minimum duration before changing
+    private func applyPersistenceGate(newState: Bool) {
+        let now = Date()
+
+        // Check if state is different from current published state
+        if newState != isPerfectCompositionActive {
+            // State wants to change
+
+            // Check if this is a new pending state or continuation of previous pending
+            if pendingPerfectState != newState {
+                // New pending state - start timer
+                pendingPerfectState = newState
+                lastPerfectStateChange = now
+                return  // Don't change published state yet
+            }
+
+            // Continuation of pending state - check if enough time has passed
+            guard let changeStartTime = lastPerfectStateChange else {
+                pendingPerfectState = newState
+                lastPerfectStateChange = now
+                return
+            }
+
+            let timeSinceChange = now.timeIntervalSince(changeStartTime) * 1000  // Convert to ms
+
+            // Apply different persistence thresholds for entering vs exiting perfect
+            let requiredDuration: Int
+            if newState {
+                // Becoming perfect - shorter duration (show green ring faster)
+                requiredDuration = Config.perfectCompositionMinDurationMs
+            } else {
+                // Becoming imperfect - longer duration (keep green ring longer)
+                requiredDuration = Config.imperfectMinDurationMs
+            }
+
+            if timeSinceChange >= Double(requiredDuration) {
+                // Persistence duration met - apply the change
+                isPerfectCompositionActive = newState
+                pendingPerfectState = nil
+                print("🔄 Perfect composition state changed: \(newState) (persisted for \(Int(timeSinceChange))ms)")
+            }
+
+        } else {
+            // State matches current - clear pending state
+            pendingPerfectState = nil
+            lastPerfectStateChange = nil
+        }
     }
     
     // 🚀 MULTI-FACE ENHANCEMENT: Adaptive Headroom Guidance

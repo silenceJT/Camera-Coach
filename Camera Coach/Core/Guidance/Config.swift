@@ -77,6 +77,40 @@ enum Config {
     static let leadSpaceTolerancePercentage: Float = 10.0      // Tolerance before triggering guidance
     static let leadSpaceCooldownMs: Int = 800                  // Cooldown for lead space guidance
 
+    // MARK: - Composition Smoothing & Debouncing (Week 7 - Professional Camera App Behavior)
+
+    // EMA Smoothing Factors (α values for exponential moving average)
+    // Formula: smoothed = α × current + (1-α) × previous
+    // Lower α = more smoothing, slower response (good for UI stability)
+    // Higher α = less smoothing, faster response (good for user control)
+    static let headroomSmoothingAlpha: Float = 0.2            // Headroom smoothing (balanced)
+    static let leadSpaceSmoothingAlpha: Float = 0.2           // Lead space smoothing (balanced)
+    static let thirdsOffsetSmoothingAlpha: Float = 0.15       // Thirds offset (more smoothing for visual stability)
+    static let eyeroomSmoothingAlpha: Float = 0.18            // Eyeroom smoothing (slightly more responsive)
+
+    // Hysteresis Ranges for Perfect Composition (Schmitt Trigger Pattern)
+    // ENTER perfect: Strict thresholds (narrow band)
+    // EXIT perfect: Looser thresholds (wider band - prevents flickering)
+
+    // Headroom hysteresis (by vertical position)
+    static let upperThirdsHeadroomExitRange: ClosedRange<Float> = 2.0...25.0    // Entry: 5-20, Exit: 2-25
+    static let centeredHeadroomExitRange: ClosedRange<Float> = 12.0...40.0      // Entry: 15-35, Exit: 12-40
+    static let lowerThirdsHeadroomExitRange: ClosedRange<Float> = 32.0...60.0   // Entry: 35-55, Exit: 32-60
+
+    // Lead space hysteresis
+    static let leadSpaceExitRange: ClosedRange<Float> = 15.0...45.0             // Entry: 20-40, Exit: 15-45
+
+    // Rule of thirds hysteresis (horizontal centering)
+    static let thirdsExitTolerancePercentage: Float = 20.0                      // Entry: 15%, Exit: 20%
+
+    // Time-based persistence gates (prevent rapid state flickering)
+    static let perfectCompositionMinDurationMs: Int = 150     // Must be perfect for 150ms before showing
+    static let imperfectMinDurationMs: Int = 200              // Must be imperfect for 200ms before hiding
+
+    // Green ring glow animation parameters
+    static let glowFadeInDuration: TimeInterval = 0.2         // Fast fade-in when entering perfect
+    static let glowFadeOutDuration: TimeInterval = 0.3        // Slightly slower fade-out
+
     // MARK: - Edge Density Detection (Week 7)
     static let edgeDensitySampleWidth: CGFloat = 30            // Width of edge sampling region (pixels)
     static let edgeDensityThreshold: Float = 0.3               // Edge density threshold for conflict (0-1)

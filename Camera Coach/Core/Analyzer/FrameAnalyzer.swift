@@ -41,7 +41,13 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
     private var facePositionHistory: [CGPoint] = []            // Track face center positions
     private var orientationHistory: [FaceOrientation] = []     // Track detected orientations
     private var lastFaceRect: CGRect?                          // Previous frame's face bbox
-    
+
+    // MARK: - EMA Smoothing Filters (Week 7 - Professional Debouncing)
+    private let headroomFilter = EMAFilter(alpha: Config.headroomSmoothingAlpha)
+    private let eyeroomFilter = EMAFilter(alpha: Config.eyeroomSmoothingAlpha)
+    private let leadSpaceFilter = EMAFilter(alpha: Config.leadSpaceSmoothingAlpha)
+    private let thirdsOffsetFilter = EMAFilter(alpha: Config.thirdsOffsetSmoothingAlpha)
+
     // MARK: - Performance
     private var frameCount = 0
     private var lastFrameTime: TimeInterval = 0
@@ -439,7 +445,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             let headroomInContentSpace = scaledContentHeight - faceTopInScreenSpace
 
             // Headroom as percentage of VISIBLE content height
-            let headroomPercentage = Float((headroomInContentSpace / scaledContentHeight) * 100.0)
+            let rawHeadroomPercentage = Float((headroomInContentSpace / scaledContentHeight) * 100.0)
+
+            // 🚀 WEEK 7: Apply EMA smoothing to prevent jitter
+            let headroomPercentage = headroomFilter.update(rawHeadroomPercentage)
 
             // 🎯 WEEK 7 ENHANCEMENT: Calculate "EYEROOM" (space above eyes) - More accurate than headroom!
             // Professional photographers follow "rule of thirds" for EYES, not head
@@ -476,7 +485,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
 
                 // Calculate space ABOVE eyes (this is what photographers care about!)
                 let eyeroomInContentSpace = scaledContentHeight - eyeCenterY_screen
-                eyeroomPercentage = Float((eyeroomInContentSpace / scaledContentHeight) * 100.0)
+                let rawEyeroomPercentage = Float((eyeroomInContentSpace / scaledContentHeight) * 100.0)
+
+                // 🚀 WEEK 7: Apply EMA smoothing to prevent jitter
+                eyeroomPercentage = eyeroomFilter.update(rawEyeroomPercentage)
 
                 print("👁️ EYEROOM: Eye center Y=\(Int(eyeCenterY_image))px buffer → \(Int(eyeCenterY_screen))px screen")
                 print("👁️ EYEROOM: Space above eyes=\(Int(eyeroomInContentSpace))px / \(Int(scaledContentHeight))px = \(String(format: "%.1f", eyeroomPercentage!))%")
@@ -554,7 +566,10 @@ public final class FrameAnalyzer: NSObject, ObservableObject {
             let faceCenterX = primaryFaceRect.midX
             let imageCenterX = imageSize.width / 2
             let offset = (faceCenterX - imageCenterX) / imageSize.width
-            let thirdsOffsetPercentage = Float(offset * 100.0)
+            let rawThirdsOffsetPercentage = Float(offset * 100.0)
+
+            // 🚀 WEEK 7: Apply EMA smoothing to prevent jitter
+            let thirdsOffsetPercentage = thirdsOffsetFilter.update(rawThirdsOffsetPercentage)
             
             // Check face stability with enhanced tracking (based on primary face)
             // IMPORTANT: Normalize face center to 0-1 coordinates for stability check
